@@ -14,6 +14,7 @@ public class GUI extends JFrame {
 
     // Mode buttons (need references for highlighting)
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
+    private JButton uploadBtn, executeBtn; // reference for enabling/disabling
 
     public GUI() {
         setTitle("Mini Code Editor");
@@ -59,9 +60,9 @@ public class GUI extends JFrame {
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
 
-        JButton executeBtn = new JButton("Execute");
+        executeBtn = new JButton("Execute");
         JButton saveBtn = new JButton("Save");
-        JButton uploadBtn = new JButton("Upload");
+        uploadBtn = new JButton("Upload");
 
         // Center buttons vertically
         buttonPanel.add(Box.createVerticalGlue());
@@ -187,18 +188,30 @@ public class GUI extends JFrame {
             case "svg" -> {
                 headingArea.setText("SVG Editor Mode\n(Write or paste SVG markup below)");
                 highlightActiveMode(svgBtn);
+                editorArea.setEditable(false);
+                uploadBtn.setEnabled(false);
+                executeBtn.setEnabled(false);
             }
             case "java" -> {
                 headingArea.setText("Java Code Editor Mode\n(Type Java code below)");
                 highlightActiveMode(javaBtn);
+                editorArea.setEditable(false);
+                uploadBtn.setEnabled(false);
+                executeBtn.setEnabled(false);
             }
             case "analysis" -> {
-                headingArea.setText("Analysis Mode\n(Write analysis scripts or notes)");
+                headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
+                editorArea.setEditable(false);
                 highlightActiveMode(analysisBtn);
+                uploadBtn.setEnabled(false);
+                executeBtn.setEnabled(false);
             }
             case "message" -> {
-                headingArea.setText("Message Mode\n(Write chat-like notes or messages)");
+                headingArea.setText("Message Mode\n(Write message in the folowing format");
                 highlightActiveMode(messageBtn);
+                editorArea.setEditable(true);
+                uploadBtn.setEnabled(true);
+                executeBtn.setEnabled(true);
             }
         }
     }
