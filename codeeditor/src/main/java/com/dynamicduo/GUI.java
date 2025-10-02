@@ -14,32 +14,52 @@ public class GUI extends JFrame {
 
     // Mode buttons (need references for highlighting)
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
-    private JButton uploadBtn, executeBtn; // reference for enabling/disabling
+    private JButton uploadBtn, runBtn, saveBtn; // reference for enabling/disabling
 
     public GUI() {
-        setTitle("Mini Code Editor");
+        setTitle("Security Message App");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(900, 600);
         setLocationRelativeTo(null);
 
         setLayout(new BorderLayout());
 
-        // --- Top toolbar with modes ---
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        //creates top panel to place all buttons on
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new GridLayout(1,2));
+
+        //Creates Nav panel to allow for change between modes
+        JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         messageBtn = new JButton("Message");
         svgBtn = new JButton("SVG");
         javaBtn = new JButton("Java Code");
         analysisBtn = new JButton("Analysis");
 
-        topPanel.add(messageBtn);
-        topPanel.add(svgBtn);
-        topPanel.add(javaBtn);
-        topPanel.add(analysisBtn);
+        navPanel.add(messageBtn);
+        navPanel.add(svgBtn);
+        navPanel.add(javaBtn);
+        navPanel.add(analysisBtn);
+
+        topPanel.add(navPanel);
+
+        //Creates Button panel to place function buttons on
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout( new FlowLayout(FlowLayout.RIGHT));
+
+        runBtn = new JButton("Run");
+        saveBtn = new JButton("Save");
+        uploadBtn = new JButton("Upload");
+
+        buttonPanel.add(runBtn);
+        buttonPanel.add(saveBtn);
+        buttonPanel.add(uploadBtn);
+
+        topPanel.add(buttonPanel);
 
         add(topPanel, BorderLayout.NORTH);
 
-        // --- Split editor (heading + main editor) ---
-        headingArea = new JTextArea(3, 60);
+        //Split editor (heading + main editor)
+        headingArea = new JTextArea(3, 100);
         headingArea.setFont(new Font("Consolas", Font.BOLD, 14));
         headingArea.setEditable(false);
         headingArea.setBackground(new Color(230, 230, 230));
@@ -52,28 +72,24 @@ public class GUI extends JFrame {
         JScrollPane editorScroll = new JScrollPane(editorArea);
 
         JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, editorScroll);
-        splitPane.setDividerLocation(60);    // initial height for heading
-        splitPane.setResizeWeight(0.1);      // heading ~10%, editor ~90%
-        add(splitPane, BorderLayout.CENTER);
+        splitPane.setDividerLocation(100);    // initial height for heading
+        splitPane.setResizeWeight(0.2);      // heading ~10%, editor ~90%
 
-        // --- Right panel with buttons ---
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
+        //Create Error handler area for Message mode
+        JTextArea errorArea = new JTextArea();
+        errorArea.setRows(5);
+        errorArea.setFont(new Font("Consolas", Font.BOLD, 14));
+        errorArea.setEditable(false);
+        errorArea.setBackground(new Color(230, 230, 230));
+        errorArea.setText("Error Handler");
 
-        executeBtn = new JButton("Execute");
-        JButton saveBtn = new JButton("Save");
-        uploadBtn = new JButton("Upload");
 
-        // Center buttons vertically
-        buttonPanel.add(Box.createVerticalGlue());
-        buttonPanel.add(executeBtn);
-        buttonPanel.add(Box.createVerticalStrut(10));
-        buttonPanel.add(saveBtn);
-        buttonPanel.add(Box.createVerticalStrut(10));
-        buttonPanel.add(uploadBtn);
-        buttonPanel.add(Box.createVerticalGlue());
-
-        add(buttonPanel, BorderLayout.EAST);
+        JScrollPane errorScroll = new JScrollPane(errorArea);
+        
+        JSplitPane splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
+        splitPane2.setDividerLocation(450);    // initial height for heading
+        splitPane2.setResizeWeight(0.8);      
+        add(splitPane2, BorderLayout.CENTER);
 
         // --- Mode switching logic ---
         messageBtn.addActionListener(e -> switchMode("message"));
@@ -112,26 +128,19 @@ public class GUI extends JFrame {
             }
         });
 
-        // --- Upload button action (with extension check) ---
+        // Upload button that allows for txt files
         uploadBtn.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
             int option = fileChooser.showOpenDialog(this);
             if (option == JFileChooser.APPROVE_OPTION) {
                 File file = fileChooser.getSelectedFile();
 
-                // Expected extension based on mode
-                String expectedExt = switch (currentMode) {
-                    case "java" -> ".java";
-                    case "svg" -> ".svg";
-                    case "analysis" -> ".txt";
-                    default -> ".txt";
-                };
 
                 // Warn if extension mismatches
-                if (!file.getName().toLowerCase().endsWith(expectedExt)) {
+                if (!file.getName().toLowerCase().endsWith(".txt" )) {
                     int choice = JOptionPane.showConfirmDialog(
                             this,
-                            "This file does not appear to be a " + expectedExt + " file.\nDo you still want to load it?",
+                            "This file does not appear to be a .txt.\nDo you still want to load it?",
                             "File Extension Warning",
                             JOptionPane.YES_NO_OPTION
                     );
@@ -183,35 +192,35 @@ public class GUI extends JFrame {
         String content = modeBuffers.getOrDefault(newMode, "");
         editorArea.setText(content);
 
-        // Set heading text
+        // Set heading text and activate buttons
         switch (newMode) {
             case "svg" -> {
-                headingArea.setText("SVG Editor Mode\n(Write or paste SVG markup below)");
+                headingArea.setText("SVG Mode\n(This is the SVG for the Message Passing)");
                 highlightActiveMode(svgBtn);
                 editorArea.setEditable(false);
                 uploadBtn.setEnabled(false);
-                executeBtn.setEnabled(false);
+                runBtn.setEnabled(false);
             }
             case "java" -> {
-                headingArea.setText("Java Code Editor Mode\n(Type Java code below)");
+                headingArea.setText("Java Code \n(This is the starter java code)");
                 highlightActiveMode(javaBtn);
                 editorArea.setEditable(false);
                 uploadBtn.setEnabled(false);
-                executeBtn.setEnabled(false);
+                runBtn.setEnabled(false);
             }
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
-                editorArea.setEditable(false);
                 highlightActiveMode(analysisBtn);
+                editorArea.setEditable(false);
                 uploadBtn.setEnabled(false);
-                executeBtn.setEnabled(false);
+                runBtn.setEnabled(false);
             }
             case "message" -> {
                 headingArea.setText("Message Mode\n(Write message in the folowing format");
                 highlightActiveMode(messageBtn);
                 editorArea.setEditable(true);
                 uploadBtn.setEnabled(true);
-                executeBtn.setEnabled(true);
+                runBtn.setEnabled(true);
             }
         }
     }
