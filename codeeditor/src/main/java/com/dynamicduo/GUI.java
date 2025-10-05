@@ -7,14 +7,15 @@ import java.util.HashMap;
 
 public class GUI extends JFrame {
 
-    private JTextArea editorArea;      // editable bottom section
-    private JTextArea headingArea;     // read-only top section
+    private JTextArea editorArea, headingArea, errorArea;
     private String currentMode = "message"; // start on Message tab
     private final HashMap<String, String> modeBuffers = new HashMap<>();
+    JSplitPane splitPane, splitPane2;
+    JScrollPane headingScroll, editorScroll, errorScroll;
 
     // Mode buttons (need references for highlighting)
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
-    private JButton uploadBtn, runBtn, saveBtn; // reference for enabling/disabling
+    private JButton uploadBtn, runBtn, saveBtn;
 
     public GUI() {
         setTitle("Security Message App");
@@ -24,11 +25,11 @@ public class GUI extends JFrame {
 
         setLayout(new BorderLayout());
 
-        //creates top panel to place all buttons on
+        // creates top panel to place all buttons on
         JPanel topPanel = new JPanel();
-        topPanel.setLayout(new GridLayout(1,2));
+        topPanel.setLayout(new GridLayout(1, 2));
 
-        //Creates Nav panel to allow for change between modes
+        // Creates Nav panel to allow for change between modes
         JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         messageBtn = new JButton("Message");
         svgBtn = new JButton("SVG");
@@ -42,9 +43,9 @@ public class GUI extends JFrame {
 
         topPanel.add(navPanel);
 
-        //Creates Button panel to place function buttons on
+        // Creates Button panel to place function buttons on
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout( new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setLayout(new FlowLayout(FlowLayout.RIGHT));
 
         runBtn = new JButton("Run");
         saveBtn = new JButton("Save");
@@ -58,7 +59,7 @@ public class GUI extends JFrame {
 
         add(topPanel, BorderLayout.NORTH);
 
-        //Split editor (heading + main editor)
+        // Split editor (heading + main editor)
         headingArea = new JTextArea(3, 100);
         headingArea.setFont(new Font("Consolas", Font.BOLD, 14));
         headingArea.setEditable(false);
@@ -68,27 +69,26 @@ public class GUI extends JFrame {
         editorArea.setFont(new Font("Consolas", Font.PLAIN, 14));
         editorArea.setBorder(BorderFactory.createLineBorder(Color.BLACK));
 
-        JScrollPane headingScroll = new JScrollPane(headingArea);
-        JScrollPane editorScroll = new JScrollPane(editorArea);
+        headingScroll = new JScrollPane(headingArea);
+        editorScroll = new JScrollPane(editorArea);
 
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, editorScroll);
-        splitPane.setDividerLocation(100);    // initial height for heading
-        splitPane.setResizeWeight(0.2);      // heading ~10%, editor ~90%
+        splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, editorScroll);
+        splitPane.setDividerLocation(100); // initial height for heading
+        splitPane.setResizeWeight(0.2); // heading ~10%, editor ~90%
 
-        //Create Error handler area for Message mode
-        JTextArea errorArea = new JTextArea();
+        // Create Error handler area for Message mode
+        errorArea = new JTextArea();
         errorArea.setRows(5);
         errorArea.setFont(new Font("Consolas", Font.BOLD, 14));
         errorArea.setEditable(false);
         errorArea.setBackground(new Color(230, 230, 230));
         errorArea.setText("Error Handler");
 
+        errorScroll = new JScrollPane(errorArea);
 
-        JScrollPane errorScroll = new JScrollPane(errorArea);
-        
-        JSplitPane splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
-        splitPane2.setDividerLocation(450);    // initial height for heading
-        splitPane2.setResizeWeight(0.8);      
+        splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
+        splitPane2.setDividerLocation(450); // initial height for heading
+        splitPane2.setResizeWeight(0.8);
         add(splitPane2, BorderLayout.CENTER);
 
         // --- Mode switching logic ---
@@ -135,15 +135,13 @@ public class GUI extends JFrame {
             if (option == JFileChooser.APPROVE_OPTION) {
                 File file = fileChooser.getSelectedFile();
 
-
                 // Warn if extension mismatches
-                if (!file.getName().toLowerCase().endsWith(".txt" )) {
+                if (!file.getName().toLowerCase().endsWith(".txt")) {
                     int choice = JOptionPane.showConfirmDialog(
                             this,
                             "This file does not appear to be a .txt.\nDo you still want to load it?",
                             "File Extension Warning",
-                            JOptionPane.YES_NO_OPTION
-                    );
+                            JOptionPane.YES_NO_OPTION);
                     if (choice != JOptionPane.YES_OPTION) {
                         return; // cancel loading
                     }
@@ -200,6 +198,8 @@ public class GUI extends JFrame {
                 editorArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
+                setCenterComponent(splitPane);
+
             }
             case "java" -> {
                 headingArea.setText("Java Code \n(This is the starter java code)");
@@ -207,6 +207,8 @@ public class GUI extends JFrame {
                 editorArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
+                setCenterComponent(splitPane);
+
             }
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
@@ -214,6 +216,8 @@ public class GUI extends JFrame {
                 editorArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
+                setCenterComponent(splitPane);
+
             }
             case "message" -> {
                 headingArea.setText("Message Mode\n(Write message in the folowing format");
@@ -221,9 +225,27 @@ public class GUI extends JFrame {
                 editorArea.setEditable(true);
                 uploadBtn.setEnabled(true);
                 runBtn.setEnabled(true);
+                splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
+                splitPane2.setDividerLocation(425); // initial height for heading
+                splitPane2.setResizeWeight(0.8);
+                setCenterComponent(splitPane2);
+
             }
         }
     }
 
+    private void setCenterComponent(Component comp) {
+        Container contentPane = getContentPane();
+        BorderLayout layout = (BorderLayout) contentPane.getLayout();
+        Component oldCenter = layout.getLayoutComponent(BorderLayout.CENTER);
+
+        if (oldCenter != null) {
+            contentPane.remove(oldCenter);
+        }
+
+        contentPane.add(comp, BorderLayout.CENTER);
+        revalidate();
+        repaint();
+    }
 
 }
