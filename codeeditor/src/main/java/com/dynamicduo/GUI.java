@@ -1,17 +1,23 @@
-package DynamicDuo.codeeditor.src.main.java.com.dynamicduo;
+package com.dynamicduo;
 
 import javax.swing.*;
 import java.awt.*;
 import java.io.*;
 import java.util.HashMap;
+import org.fife.ui.rsyntaxtextarea.*;
+import org.fife.ui.rtextarea.*;
 
 public class GUI extends JFrame {
 
     private JTextArea editorArea, headingArea, errorArea;
+    private JScrollPane headingScroll, editorScroll, errorScroll;
+
+    private RSyntaxTextArea codeArea;
+    private RTextScrollPane codeScroll;
+
     private String currentMode = "message"; // start on Message tab
     private final HashMap<String, String> modeBuffers = new HashMap<>();
-    JSplitPane splitPane, splitPane2;
-    JScrollPane headingScroll, editorScroll, errorScroll;
+    JSplitPane splitPane, splitPane2, splitPane3;
 
     // Mode buttons (need references for highlighting)
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
@@ -72,7 +78,23 @@ public class GUI extends JFrame {
         headingScroll = new JScrollPane(headingArea);
         editorScroll = new JScrollPane(editorArea);
 
-        splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, editorScroll);
+        // Code Screen
+        codeArea = new RSyntaxTextArea(20, 60);
+        codeArea.setSyntaxEditingStyle(SyntaxConstants.SYNTAX_STYLE_JAVA);
+        codeArea.setCodeFoldingEnabled(true);
+        codeArea.setAntiAliasingEnabled(true);
+        codeArea.setFont(new Font("Consolas", Font.PLAIN, 14));
+        codeArea.setBracketMatchingEnabled(true);
+        codeArea.setAutoIndentEnabled(true);
+        codeArea.setHighlightCurrentLine(true);
+        codeArea.setCurrentLineHighlightColor(new Color(50, 56, 66));
+        codeArea.setBackground(new Color(40, 44, 52));
+        codeArea.setForeground(Color.WHITE);
+        codeArea.setCaretColor(Color.WHITE);
+
+        codeScroll = new RTextScrollPane(codeArea);
+
+        splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
         splitPane.setDividerLocation(100); // initial height for heading
         splitPane.setResizeWeight(0.2); // heading ~10%, editor ~90%
 
@@ -86,10 +108,10 @@ public class GUI extends JFrame {
 
         errorScroll = new JScrollPane(errorArea);
 
-        splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
-        splitPane2.setDividerLocation(450); // initial height for heading
-        splitPane2.setResizeWeight(0.8);
-        add(splitPane2, BorderLayout.CENTER);
+        splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
+        splitPane3.setDividerLocation(450); // initial height for heading
+        splitPane3.setResizeWeight(0.8);
+        add(splitPane3, BorderLayout.CENTER);
 
         // --- Mode switching logic ---
         messageBtn.addActionListener(e -> switchMode("message"));
@@ -162,7 +184,6 @@ public class GUI extends JFrame {
             }
         });
 
-        // --- Default mode setup: start on Message ---
         switchMode("message");
     }
 
@@ -198,7 +219,10 @@ public class GUI extends JFrame {
                 editorArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
-                setCenterComponent(splitPane);
+                splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, editorScroll);
+                splitPane2.setDividerLocation(100); // initial height for heading
+                splitPane2.setResizeWeight(0.2); // heading ~10%, editor ~90%
+                setCenterComponent(splitPane2);
 
             }
             case "java" -> {
@@ -207,28 +231,37 @@ public class GUI extends JFrame {
                 editorArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
+                splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
+                splitPane.setDividerLocation(100); // initial height for heading
+                splitPane.setResizeWeight(0.2); // heading ~10%, editor ~90%
                 setCenterComponent(splitPane);
 
             }
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
                 highlightActiveMode(analysisBtn);
-                editorArea.setEditable(false);
+                codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
-                setCenterComponent(splitPane);
+                splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, editorScroll);
+                splitPane2.setDividerLocation(100); // initial height for heading
+                splitPane2.setResizeWeight(0.2); // heading ~10%, editor ~90%
+                setCenterComponent(splitPane2);
 
             }
             case "message" -> {
                 headingArea.setText("Message Mode\n(Write message in the folowing format");
                 highlightActiveMode(messageBtn);
-                editorArea.setEditable(true);
+                codeArea.setEditable(true);
                 uploadBtn.setEnabled(true);
                 runBtn.setEnabled(true);
-                splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
-                splitPane2.setDividerLocation(425); // initial height for heading
-                splitPane2.setResizeWeight(0.8);
-                setCenterComponent(splitPane2);
+                splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
+                splitPane.setDividerLocation(100); // initial height for heading
+                splitPane.setResizeWeight(0.2); // heading ~10%, editor ~90%
+                splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
+                splitPane3.setDividerLocation(425); // initial height for heading
+                splitPane3.setResizeWeight(0.8);
+                setCenterComponent(splitPane3);
 
             }
         }
