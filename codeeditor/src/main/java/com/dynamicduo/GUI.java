@@ -175,7 +175,7 @@ public class GUI extends JFrame {
                     while ((line = reader.readLine()) != null) {
                         content.append(line).append("\n");
                     }
-                    editorArea.setText(content.toString());
+                    codeArea.setText(content.toString());
                     modeBuffers.put(currentMode, content.toString());
                     JOptionPane.showMessageDialog(this, "File loaded: " + file.getAbsolutePath());
                 } catch (IOException ex) {
@@ -202,14 +202,21 @@ public class GUI extends JFrame {
     // Switch editor between modes and remember content
     private void switchMode(String newMode) {
         // Save current bottom section content into buffer
-        modeBuffers.put(currentMode, editorArea.getText());
+
+        if (currentMode.equals("java") || currentMode.equals("message")) {
+            modeBuffers.put(currentMode, codeArea.getText());
+        } else
+            modeBuffers.put(currentMode, editorArea.getText());
 
         // Change mode
         currentMode = newMode;
 
         // Restore buffer if exists, else start empty
         String content = modeBuffers.getOrDefault(newMode, "");
-        editorArea.setText(content);
+        if (newMode.equals("java") || newMode.equals("message"))
+            codeArea.setText(content);
+        else
+            editorArea.setText(content);
 
         // Set heading text and activate buttons
         switch (newMode) {
@@ -228,7 +235,7 @@ public class GUI extends JFrame {
             case "java" -> {
                 headingArea.setText("Java Code \n(This is the starter java code)");
                 highlightActiveMode(javaBtn);
-                editorArea.setEditable(false);
+                codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
                 splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
