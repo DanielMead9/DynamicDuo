@@ -142,7 +142,10 @@ public class GUI extends JFrame {
                 }
 
                 try (FileWriter writer = new FileWriter(file)) {
-                    writer.write(editorArea.getText());
+                    if (currentMode.equals("java") || currentMode.equals("message"))
+                        writer.write(codeArea.getText());
+                    else
+                        writer.write(editorArea.getText());
                     JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
                 } catch (IOException ex) {
                     JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
