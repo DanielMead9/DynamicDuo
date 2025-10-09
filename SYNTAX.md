@@ -53,7 +53,7 @@ Comments start with // and run to end of line.
 Each statement ends with ;.
 
 ## Declarations
-principal Alice, Bob, Mallory;
+principal Alice, Bob;
 secretkey kAB, kAS;
 publickey  pkA;
 privatekey skA;
@@ -156,13 +156,12 @@ line 9: expected 'X -> Y : expr;'
 
 Principals → boxes
 
-Eve (eavesdropper) → dashed ellipse
+Adversary (eavesdropper) → dashed ellipse
 
 Sends → solid arrows with payload labels
 
-Eve taps → dashed lines
+Adversary taps → dashed lines
 
-Mallory (if present) → arrows split through Mallory
 
 (FORMAL) — Reference for Professor / Advanced Users
 Payload expressions
