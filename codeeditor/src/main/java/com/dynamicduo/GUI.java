@@ -23,7 +23,7 @@ public class GUI extends JFrame {
 
     // Mode buttons (need references for highlighting)
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
-    private JButton uploadBtn, runBtn, saveBtn;
+    private JButton uploadBtn, runBtn, saveBtn, displayBtn;
 
     public GUI() {
         setTitle("Security Message App");
@@ -58,10 +58,12 @@ public class GUI extends JFrame {
         runBtn = new JButton("Run");
         saveBtn = new JButton("Save");
         uploadBtn = new JButton("Upload");
+        displayBtn = new JButton("Dark Mode");
 
         buttonPanel.add(runBtn);
         buttonPanel.add(saveBtn);
         buttonPanel.add(uploadBtn);
+        buttonPanel.add(displayBtn);
 
         topPanel.add(buttonPanel);
 
@@ -88,13 +90,16 @@ public class GUI extends JFrame {
         codeArea.setFont(new Font("Consolas", Font.PLAIN, 14));
         codeArea.setBracketMatchingEnabled(true);
         codeArea.setAutoIndentEnabled(true);
+
         codeArea.setHighlightCurrentLine(true);
-        codeArea.setCurrentLineHighlightColor(new Color(50, 56, 66));
-        codeArea.setBackground(new Color(40, 44, 52));
-        codeArea.setForeground(Color.WHITE);
-        codeArea.setCaretColor(Color.WHITE);
+        codeArea.setBackground(Color.WHITE);
+        codeArea.setForeground(Color.BLACK);
+        codeArea.setCaretColor(Color.BLACK);
+        codeArea.setCurrentLineHighlightColor(Color.LIGHT_GRAY);
 
         codeScroll = new RTextScrollPane(codeArea);
+        codeScroll.getGutter().setLineNumberColor(Color.BLACK);
+        codeScroll.getGutter().setBackground(Color.WHITE);
 
         splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
         splitPane.setDividerLocation(100); // initial height for heading
@@ -201,6 +206,48 @@ public class GUI extends JFrame {
             }
         });
 
+        displayBtn.addActionListener(e -> {
+            // Toggle between light and dark mode
+            if (codeArea.getBackground().equals(new Color(40, 44, 52))) {
+                // Switch to light mode
+                codeScroll.getGutter().setLineNumberColor(Color.BLACK);
+                codeScroll.getGutter().setBackground(Color.WHITE);
+                navPanel.setBackground(Color.WHITE);
+                buttonPanel.setBackground(Color.WHITE);
+                codeArea.setBackground(Color.WHITE);
+                codeArea.setForeground(Color.BLACK);
+                codeArea.setCaretColor(Color.BLACK);
+                codeArea.setCurrentLineHighlightColor(Color.LIGHT_GRAY);
+                headingArea.setBackground(new Color(230, 230, 230));
+                headingArea.setForeground(Color.BLACK);
+                editorArea.setBackground(Color.WHITE);
+                editorArea.setForeground(Color.BLACK);
+                errorArea.setBackground(new Color(230, 230, 230));
+                errorArea.setForeground(Color.BLACK);
+                displayBtn.setText("Dark Mode");
+
+            } else {
+                // Switch to dark mode
+                codeScroll.getGutter().setLineNumberColor(Color.WHITE);
+                codeScroll.getGutter().setBackground(new Color(40, 44, 52));
+                navPanel.setBackground(Color.DARK_GRAY);
+                buttonPanel.setBackground(Color.DARK_GRAY);
+                codeArea.setBackground(new Color(40, 44, 52));
+                codeArea.setForeground(Color.WHITE);
+                codeArea.setCaretColor(Color.WHITE);
+                codeArea.setCurrentLineHighlightColor(new Color(50, 56, 66));
+                headingArea.setBackground(Color.DARK_GRAY);
+                headingArea.setForeground(Color.WHITE);
+                editorArea.setBackground(new Color(40, 44, 52));
+                editorArea.setForeground(Color.WHITE);
+                errorArea.setBackground(Color.DARK_GRAY);
+                errorArea.setForeground(Color.WHITE);
+                displayBtn.setText("Light Mode");
+            }
+            revalidate();
+            repaint();
+        });
+
         switchMode("message");
     }
 
@@ -211,7 +258,7 @@ public class GUI extends JFrame {
             if (b == active) {
                 b.setBackground(Color.LIGHT_GRAY);
             } else {
-                b.setBackground(null); // reset default
+                b.setBackground(new Color(238, 238, 238)); // reset default
             }
         }
     }
@@ -274,7 +321,8 @@ public class GUI extends JFrame {
 
             }
             case "message" -> {
-                headingArea.setText("Message Mode\n(Write message in the folowing format");
+                headingArea.setText("Message Mode\nFiles can be uploaded as .txt or .pdf\n" +
+                        "Syntax:");
                 highlightActiveMode(messageBtn);
                 codeArea.setEditable(true);
                 uploadBtn.setEnabled(true);
