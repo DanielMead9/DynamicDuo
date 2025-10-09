@@ -6,6 +6,8 @@ import java.io.*;
 import java.util.HashMap;
 import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 
 public class GUI extends JFrame {
 
@@ -161,10 +163,10 @@ public class GUI extends JFrame {
                 File file = fileChooser.getSelectedFile();
 
                 // Warn if extension mismatches
-                if (!file.getName().toLowerCase().endsWith(".txt")) {
+                if (!file.getName().toLowerCase().endsWith(".txt") && !file.getName().toLowerCase().endsWith(".pdf")) {
                     int choice = JOptionPane.showConfirmDialog(
                             this,
-                            "This file does not appear to be a .txt.\nDo you still want to load it?",
+                            "This file does not appear to be a .txt or .pdf.\nDo you still want to load it?",
                             "File Extension Warning",
                             JOptionPane.YES_NO_OPTION);
                     if (choice != JOptionPane.YES_OPTION) {
@@ -172,18 +174,30 @@ public class GUI extends JFrame {
                     }
                 }
 
-                try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                    StringBuilder content = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        content.append(line).append("\n");
+                if (file.getName().toLowerCase().endsWith(".pdf")) {
+                    try (PDDocument document = PDDocument.load(file)) {
+                        PDFTextStripper stripper = new PDFTextStripper();
+                        String text = stripper.getText(document);
+                        codeArea.setText(text);
+                        JOptionPane.showMessageDialog(this, "File loaded: " + file.getAbsolutePath());
+                    } catch (IOException ex) {
+                        JOptionPane.showMessageDialog(this, "Error loading file: " + ex.getMessage());
                     }
-                    codeArea.setText(content.toString());
-                    modeBuffers.put(currentMode, content.toString());
-                    JOptionPane.showMessageDialog(this, "File loaded: " + file.getAbsolutePath());
-                } catch (IOException ex) {
-                    JOptionPane.showMessageDialog(this, "Error loading file: " + ex.getMessage());
+                } else {
+                    try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                        StringBuilder content = new StringBuilder();
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            content.append(line).append("\n");
+                        }
+                        codeArea.setText(content.toString());
+                        modeBuffers.put(currentMode, content.toString());
+                        JOptionPane.showMessageDialog(this, "File loaded: " + file.getAbsolutePath());
+                    } catch (IOException ex) {
+                        JOptionPane.showMessageDialog(this, "Error loading file: " + ex.getMessage());
+                    }
                 }
+
             }
         });
 
