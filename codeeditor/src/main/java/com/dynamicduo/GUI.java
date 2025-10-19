@@ -6,6 +6,12 @@ import java.io.*;
 import java.util.HashMap;
 import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
+
+import guru.nidi.graphviz.engine.*;
+import guru.nidi.graphviz.engine.Renderer;
+import guru.nidi.graphviz.model.*;
+import guru.nidi.graphviz.model.Factory.*;
+
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 
@@ -250,6 +256,24 @@ public class GUI extends JFrame {
 
         runBtn.addActionListener(e ->{
            JOptionPane.showMessageDialog(this, "Run Button pressed");
+            SVG svg = new SVG();
+
+            try {
+                Renderer renderer = Graphviz.fromGraph(svg.g).render(Format.PNG);
+                File outFile = new File("graph.png");
+                renderer.toFile(outFile);
+            } catch (IOException f) {
+                f.printStackTrace();
+            }
+           
+
+            // Show in Swing
+            ImageIcon icon = new ImageIcon("graph.png");
+            JLabel label = new JLabel(icon);
+            add(new JScrollPane(label), BorderLayout.WEST);
+
+            revalidate();
+            repaint();
 
         });
 
