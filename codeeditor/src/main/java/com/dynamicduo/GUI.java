@@ -248,6 +248,11 @@ public class GUI extends JFrame {
             repaint();
         });
 
+        runBtn.addActionListener(e ->{
+           JOptionPane.showMessageDialog(this, "Run Button pressed");
+
+        });
+
         switchMode("message");
     }
 
@@ -256,9 +261,9 @@ public class GUI extends JFrame {
         JButton[] allButtons = { messageBtn, svgBtn, javaBtn, analysisBtn };
         for (JButton b : allButtons) {
             if (b == active) {
-                b.setBackground(Color.LIGHT_GRAY);
+                b.setBackground(Color.GRAY);
             } else {
-                b.setBackground(new Color(238, 238, 238)); // reset default
+                b.setBackground(Color.WHITE); // reset default
             }
         }
     }
@@ -331,8 +336,8 @@ public class GUI extends JFrame {
                 splitPane.setDividerLocation(100); // initial height for heading
                 splitPane.setResizeWeight(0.2); // heading ~10%, editor ~90%
                 splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
-                splitPane3.setDividerLocation(425); // initial height for heading
-                splitPane3.setResizeWeight(0.8);
+                splitPane3.setDividerLocation(475);
+                splitPane3.setResizeWeight(0.9);
                 setCenterComponent(splitPane3);
 
             }
