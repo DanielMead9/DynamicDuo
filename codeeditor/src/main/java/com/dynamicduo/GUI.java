@@ -19,7 +19,7 @@ public class GUI extends JFrame {
 
     private JTextArea headingArea, svgArea, analysisArea, errorArea;
     private JScrollPane headingScroll, svgScroll, analysisScroll, errorScroll;
-    
+
     private RSyntaxTextArea codeArea;
     private RTextScrollPane codeScroll;
 
@@ -75,18 +75,25 @@ public class GUI extends JFrame {
 
         add(topPanel, BorderLayout.NORTH);
 
-        // Split editor (heading + main editor)
+        //Set Up Header Area
         headingArea = new JTextArea(3, 100);
         headingArea.setFont(new Font("Consolas", Font.BOLD, 14));
         headingArea.setEditable(false);
         headingArea.setBackground(new Color(230, 230, 230));
 
-        editorArea = new JTextArea();
-        editorArea.setFont(new Font("Consolas", Font.PLAIN, 14));
-        editorArea.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+        //Set up Analysis Area
+        analysisArea = new JTextArea();
+        analysisArea.setFont(new Font("Consolas", Font.PLAIN, 14));
+        analysisArea.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+        analysisArea.setEditable(false);
 
-        headingScroll = new JScrollPane(headingArea);
-        editorScroll = new JScrollPane(editorArea);
+        analysisScroll = new JScrollPane(analysisArea);
+
+        //Set up SVG Area
+        svgArea = new JTextArea();
+        svgArea.setEditable(false);
+
+        svgScroll = new JScrollPane(svgArea);
 
         // Code Screen
         codeArea = new RSyntaxTextArea(20, 60);
@@ -107,10 +114,6 @@ public class GUI extends JFrame {
         codeScroll.getGutter().setLineNumberColor(Color.BLACK);
         codeScroll.getGutter().setBackground(Color.WHITE);
 
-        splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
-        splitPane.setDividerLocation(100); // initial height for heading
-        splitPane.setResizeWeight(0.2); // heading ~10%, editor ~90%
-
         // Create Error handler area for Message mode
         errorArea = new JTextArea();
         errorArea.setRows(5);
@@ -121,12 +124,7 @@ public class GUI extends JFrame {
 
         errorScroll = new JScrollPane(errorArea);
 
-        splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
-        splitPane3.setDividerLocation(450); // initial height for heading
-        splitPane3.setResizeWeight(0.8);
-        add(splitPane3, BorderLayout.CENTER);
-
-        // --- Mode switching logic ---
+        //Tab Switches
         messageBtn.addActionListener(e -> switchMode("message"));
         svgBtn.addActionListener(e -> switchMode("svg"));
         javaBtn.addActionListener(e -> switchMode("java"));
@@ -158,7 +156,7 @@ public class GUI extends JFrame {
                     if (currentMode.equals("java") || currentMode.equals("message"))
                         writer.write(codeArea.getText());
                     else
-                        writer.write(editorArea.getText());
+                        writer.write(analysisArea.getText());
                     JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
                 } catch (IOException ex) {
                     JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
@@ -226,8 +224,10 @@ public class GUI extends JFrame {
                 codeArea.setCurrentLineHighlightColor(Color.LIGHT_GRAY);
                 headingArea.setBackground(new Color(230, 230, 230));
                 headingArea.setForeground(Color.BLACK);
-                editorArea.setBackground(Color.WHITE);
-                editorArea.setForeground(Color.BLACK);
+                analysisArea.setBackground(Color.WHITE);
+                analysisArea.setForeground(Color.BLACK);
+                svgArea.setBackground(Color.WHITE);
+                svgArea.setForeground(Color.BLACK);
                 errorArea.setBackground(new Color(230, 230, 230));
                 errorArea.setForeground(Color.BLACK);
                 displayBtn.setText("Dark Mode");
@@ -244,8 +244,10 @@ public class GUI extends JFrame {
                 codeArea.setCurrentLineHighlightColor(new Color(50, 56, 66));
                 headingArea.setBackground(Color.DARK_GRAY);
                 headingArea.setForeground(Color.WHITE);
-                editorArea.setBackground(new Color(40, 44, 52));
-                editorArea.setForeground(Color.WHITE);
+                analysisArea.setBackground(new Color(40, 44, 52));
+                analysisArea.setForeground(Color.WHITE);
+                svgArea.setBackground(new Color(40, 44, 52));
+                svgArea.setForeground(Color.WHITE);
                 errorArea.setBackground(Color.DARK_GRAY);
                 errorArea.setForeground(Color.WHITE);
                 displayBtn.setText("Light Mode");
@@ -293,8 +295,10 @@ public class GUI extends JFrame {
 
         if (currentMode.equals("java") || currentMode.equals("message")) {
             modeBuffers.put(currentMode, codeArea.getText());
-        } else
-            modeBuffers.put(currentMode, editorArea.getText());
+        } else if (newMode.equals("analysis"))
+            modeBuffers.put(currentMode, analysisArea.getText());
+        else
+            modeBuffers.put(currentMode, svgArea.getText());
 
         // Change mode
         currentMode = newMode;
@@ -303,23 +307,25 @@ public class GUI extends JFrame {
         String content = modeBuffers.getOrDefault(newMode, "");
         if (newMode.equals("java") || newMode.equals("message"))
             codeArea.setText(content);
-        else
-            editorArea.setText(content);
+        else if (newMode.equals("analysis"))
+            analysisArea.setText(content);
+        else 
+            svgArea.setText(content);
 
         // Set heading text and activate buttons
         switch (newMode) {
             case "svg" -> {
                 headingArea.setText("SVG Mode\n(This is the SVG for the Message Passing)");
                 highlightActiveMode(svgBtn);
-                editorArea.setEditable(false);
+
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
                 
                 ImageIcon icon = new ImageIcon("graph.svg");
                 JLabel label = new JLabel(icon);
-                editorScroll = new JScrollPane(label);
+                svgScroll = new JScrollPane(label);
 
-                splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, editorScroll);
+                splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
                 splitPane2.setDividerLocation(100); 
                 splitPane2.setResizeWeight(0.2); 
                 setCenterComponent(splitPane2);
@@ -338,7 +344,6 @@ public class GUI extends JFrame {
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
                 highlightActiveMode(analysisBtn);
-                codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, editorScroll);
