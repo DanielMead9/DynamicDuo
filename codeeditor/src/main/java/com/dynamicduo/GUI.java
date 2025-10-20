@@ -346,7 +346,7 @@ public class GUI extends JFrame {
                 highlightActiveMode(analysisBtn);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
-                splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, editorScroll);
+                splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, analysisScroll);
                 splitPane2.setDividerLocation(100); 
                 splitPane2.setResizeWeight(0.2); 
                 setCenterComponent(splitPane2);
