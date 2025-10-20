@@ -6,6 +6,12 @@ import java.io.*;
 import java.util.HashMap;
 import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
+
+import guru.nidi.graphviz.engine.*;
+import guru.nidi.graphviz.engine.Renderer;
+import guru.nidi.graphviz.model.*;
+import guru.nidi.graphviz.model.Factory.*;
+
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 
@@ -69,13 +75,11 @@ public class GUI extends JFrame {
 
         add(topPanel, BorderLayout.NORTH);
 
-        //Set up Header Area
+        //Set Up Header Area
         headingArea = new JTextArea(3, 100);
         headingArea.setFont(new Font("Consolas", Font.BOLD, 14));
         headingArea.setEditable(false);
         headingArea.setBackground(new Color(230, 230, 230));
-
-        headingScroll = new JScrollPane(headingArea);
 
         //Set up Analysis Area
         analysisArea = new JTextArea();
@@ -120,9 +124,7 @@ public class GUI extends JFrame {
 
         errorScroll = new JScrollPane(errorArea);
 
-
-
-        //Tab switches
+        //Tab Switches
         messageBtn.addActionListener(e -> switchMode("message"));
         svgBtn.addActionListener(e -> switchMode("svg"));
         javaBtn.addActionListener(e -> switchMode("java"));
@@ -255,7 +257,20 @@ public class GUI extends JFrame {
         });
 
         runBtn.addActionListener(e ->{
-           JOptionPane.showMessageDialog(this, "Run Button pressed");
+
+            SVG svg = new SVG();
+
+            try {
+                Renderer renderer = Graphviz.fromGraph(svg.g2).render(Format.PNG);
+                File outFile = new File("graph.svg");
+                renderer.toFile(outFile);
+            } catch (IOException f) {
+                f.printStackTrace();
+            }
+           
+            switchMode("svg");
+
+            JOptionPane.showMessageDialog(this, "Run Button pressed");
 
         });
 
@@ -302,8 +317,14 @@ public class GUI extends JFrame {
             case "svg" -> {
                 headingArea.setText("SVG Mode\n(This is the SVG for the Message Passing)");
                 highlightActiveMode(svgBtn);
+
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
+                
+                ImageIcon icon = new ImageIcon("graph.svg");
+                JLabel label = new JLabel(icon);
+                svgScroll = new JScrollPane(label);
+
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
                 splitPane2.setDividerLocation(100); 
                 splitPane2.setResizeWeight(0.2); 
@@ -366,7 +387,5 @@ public class GUI extends JFrame {
         splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
         splitPane.setDividerLocation(100); 
         splitPane.setResizeWeight(0.2); 
-        
     }
-
 }
