@@ -255,12 +255,11 @@ public class GUI extends JFrame {
         });
 
         runBtn.addActionListener(e ->{
-           JOptionPane.showMessageDialog(this, "Run Button pressed");
             SVG svg = new SVG();
 
             try {
-                Renderer renderer = Graphviz.fromGraph(svg.g).render(Format.PNG);
-                File outFile = new File("graph.png");
+                Renderer renderer = Graphviz.fromGraph(svg.g2).render(Format.PNG);
+                File outFile = new File("graph.svg");
                 renderer.toFile(outFile);
             } catch (IOException f) {
                 f.printStackTrace();
@@ -268,12 +267,14 @@ public class GUI extends JFrame {
            
 
             // Show in Swing
-            ImageIcon icon = new ImageIcon("graph.png");
+            ImageIcon icon = new ImageIcon("graph.svg");
             JLabel label = new JLabel(icon);
             add(new JScrollPane(label), BorderLayout.WEST);
 
             revalidate();
             repaint();
+
+            JOptionPane.showMessageDialog(this, "Run Button pressed");
 
         });
 
