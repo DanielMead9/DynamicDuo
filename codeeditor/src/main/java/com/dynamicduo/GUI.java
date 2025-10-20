@@ -17,9 +17,9 @@ import org.apache.pdfbox.text.PDFTextStripper;
 
 public class GUI extends JFrame {
 
-    private JTextArea editorArea, headingArea, errorArea;
-    private JScrollPane headingScroll, editorScroll, errorScroll;
-
+    private JTextArea headingArea, svgArea, analysisArea, errorArea;
+    private JScrollPane headingScroll, svgScroll, analysisScroll, errorScroll;
+    
     private RSyntaxTextArea codeArea;
     private RTextScrollPane codeScroll;
 
@@ -255,6 +255,7 @@ public class GUI extends JFrame {
         });
 
         runBtn.addActionListener(e ->{
+
             SVG svg = new SVG();
 
             try {
@@ -265,14 +266,7 @@ public class GUI extends JFrame {
                 f.printStackTrace();
             }
            
-
-            // Show in Swing
-            ImageIcon icon = new ImageIcon("graph.svg");
-            JLabel label = new JLabel(icon);
-            add(new JScrollPane(label), BorderLayout.WEST);
-
-            revalidate();
-            repaint();
+            switchMode("svg");
 
             JOptionPane.showMessageDialog(this, "Run Button pressed");
 
@@ -320,9 +314,14 @@ public class GUI extends JFrame {
                 editorArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
+                
+                ImageIcon icon = new ImageIcon("graph.svg");
+                JLabel label = new JLabel(icon);
+                editorScroll = new JScrollPane(label);
+
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, editorScroll);
-                splitPane2.setDividerLocation(100); // initial height for heading
-                splitPane2.setResizeWeight(0.2); // heading ~10%, editor ~90%
+                splitPane2.setDividerLocation(100); 
+                splitPane2.setResizeWeight(0.2); 
                 setCenterComponent(splitPane2);
 
             }
@@ -332,9 +331,7 @@ public class GUI extends JFrame {
                 codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
-                splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
-                splitPane.setDividerLocation(100); // initial height for heading
-                splitPane.setResizeWeight(0.2); // heading ~10%, editor ~90%
+                setUpCodeScroll();
                 setCenterComponent(splitPane);
 
             }
@@ -345,8 +342,8 @@ public class GUI extends JFrame {
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, editorScroll);
-                splitPane2.setDividerLocation(100); // initial height for heading
-                splitPane2.setResizeWeight(0.2); // heading ~10%, editor ~90%
+                splitPane2.setDividerLocation(100); 
+                splitPane2.setResizeWeight(0.2); 
                 setCenterComponent(splitPane2);
 
             }
@@ -357,9 +354,7 @@ public class GUI extends JFrame {
                 codeArea.setEditable(true);
                 uploadBtn.setEnabled(true);
                 runBtn.setEnabled(true);
-                splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
-                splitPane.setDividerLocation(100); // initial height for heading
-                splitPane.setResizeWeight(0.2); // heading ~10%, editor ~90%
+                setUpCodeScroll();
                 splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
                 splitPane3.setDividerLocation(475);
                 splitPane3.setResizeWeight(0.9);
@@ -383,4 +378,9 @@ public class GUI extends JFrame {
         repaint();
     }
 
+    private void setUpCodeScroll(){
+        splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
+        splitPane.setDividerLocation(100); 
+        splitPane.setResizeWeight(0.2); 
+    }
 }
