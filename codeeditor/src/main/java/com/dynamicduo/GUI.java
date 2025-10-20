@@ -366,6 +366,7 @@ public class GUI extends JFrame {
         splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
         splitPane.setDividerLocation(100); 
         splitPane.setResizeWeight(0.2); 
+        
     }
 
 }
