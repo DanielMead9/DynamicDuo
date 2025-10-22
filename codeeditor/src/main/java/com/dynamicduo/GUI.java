@@ -19,6 +19,7 @@ public class GUI extends JFrame {
 
     private JTextArea headingArea, svgArea, analysisArea, errorArea;
     private JScrollPane headingScroll, svgScroll, analysisScroll, errorScroll;
+    private File outFile = new File("graph.svg");
 
     private RSyntaxTextArea codeArea;
     private RTextScrollPane codeScroll;
@@ -80,6 +81,8 @@ public class GUI extends JFrame {
         headingArea.setFont(new Font("Consolas", Font.BOLD, 14));
         headingArea.setEditable(false);
         headingArea.setBackground(new Color(230, 230, 230));
+
+        headingScroll = new JScrollPane(headingArea);
 
         //Set up Analysis Area
         analysisArea = new JTextArea();
@@ -262,7 +265,7 @@ public class GUI extends JFrame {
 
             try {
                 Renderer renderer = Graphviz.fromGraph(svg.g2).render(Format.PNG);
-                File outFile = new File("graph.svg");
+                
                 renderer.toFile(outFile);
             } catch (IOException f) {
                 f.printStackTrace();
@@ -337,7 +340,9 @@ public class GUI extends JFrame {
                 codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
-                setUpCodeScroll();
+                splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
+                splitPane.setDividerLocation(100); 
+                splitPane.setResizeWeight(0.2); 
                 setCenterComponent(splitPane);
 
             }
@@ -359,9 +364,11 @@ public class GUI extends JFrame {
                 codeArea.setEditable(true);
                 uploadBtn.setEnabled(true);
                 runBtn.setEnabled(true);
-                setUpCodeScroll();
+                splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
+                splitPane.setDividerLocation(100); 
+                splitPane.setResizeWeight(0.2); 
                 splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
-                splitPane3.setDividerLocation(475);
+                splitPane3.setDividerLocation(675);
                 splitPane3.setResizeWeight(0.9);
                 setCenterComponent(splitPane3);
 
