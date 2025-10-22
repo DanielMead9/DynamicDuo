@@ -19,7 +19,6 @@ public class GUI extends JFrame {
 
     private JTextArea headingArea, svgArea, analysisArea, errorArea;
     private JScrollPane headingScroll, svgScroll, analysisScroll, errorScroll;
-    private File outFile = new File("graph.svg");
 
     private RSyntaxTextArea codeArea;
     private RTextScrollPane codeScroll;
@@ -31,6 +30,10 @@ public class GUI extends JFrame {
     // Mode buttons (need references for highlighting)
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
+
+    private SVG svg;
+    private boolean executed = false;
+    private File outFile;
 
     public GUI() {
         setTitle("Security Message App");
@@ -76,7 +79,7 @@ public class GUI extends JFrame {
 
         add(topPanel, BorderLayout.NORTH);
 
-        //Set Up Header Area
+        // Set Up Header Area
         headingArea = new JTextArea(3, 100);
         headingArea.setFont(new Font("Consolas", Font.BOLD, 14));
         headingArea.setEditable(false);
@@ -84,19 +87,13 @@ public class GUI extends JFrame {
 
         headingScroll = new JScrollPane(headingArea);
 
-        //Set up Analysis Area
+        // Set up Analysis Area
         analysisArea = new JTextArea();
         analysisArea.setFont(new Font("Consolas", Font.PLAIN, 14));
         analysisArea.setBorder(BorderFactory.createLineBorder(Color.BLACK));
         analysisArea.setEditable(false);
 
         analysisScroll = new JScrollPane(analysisArea);
-
-        //Set up SVG Area
-        svgArea = new JTextArea();
-        svgArea.setEditable(false);
-
-        svgScroll = new JScrollPane(svgArea);
 
         // Code Screen
         codeArea = new RSyntaxTextArea(20, 60);
@@ -127,7 +124,7 @@ public class GUI extends JFrame {
 
         errorScroll = new JScrollPane(errorArea);
 
-        //Tab Switches
+        // Tab Switches
         messageBtn.addActionListener(e -> switchMode("message"));
         svgBtn.addActionListener(e -> switchMode("svg"));
         javaBtn.addActionListener(e -> switchMode("java"));
@@ -135,7 +132,6 @@ public class GUI extends JFrame {
 
         // --- Save button action (with extension suggestion + auto-append) ---
         saveBtn.addActionListener(e -> {
-            JFileChooser fileChooser = new JFileChooser();
 
             // Suggest extension based on mode
             String ext = switch (currentMode) {
@@ -145,26 +141,57 @@ public class GUI extends JFrame {
                 default -> ".txt";
             };
 
-            fileChooser.setSelectedFile(new File("untitled" + ext));
-            int option = fileChooser.showSaveDialog(this);
-            if (option == JFileChooser.APPROVE_OPTION) {
-                File file = fileChooser.getSelectedFile();
+            if (currentMode.equals("svg")) {
+                JFileChooser fileChooser = new JFileChooser();
+                fileChooser.setDialogTitle("Save Graph as SVG");
+                fileChooser.setSelectedFile(new File("graph.svg"));
 
-                // Auto-append extension if missing
-                if (!file.getName().toLowerCase().endsWith(ext)) {
-                    file = new File(file.getAbsolutePath() + ext);
+                int option = fileChooser.showSaveDialog(this);
+
+                if (option == JFileChooser.APPROVE_OPTION) {
+                    File file = fileChooser.getSelectedFile();
+
+                    // Ensure it ends with .svg
+                    if (!file.getName().toLowerCase().endsWith(".svg")) {
+                        file = new File(file.getParentFile(), file.getName() + ".svg");
+                    }
+
+                    try {
+                        // Render and save SVG file
+                        Graphviz.fromGraph(svg.getGraph())
+                                .render(Format.SVG)
+                                .toFile(file);
+
+                        JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
+                    } catch (IOException ex) {
+                        JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
+                        ex.printStackTrace();
+                    }
                 }
+            } else {
+                JFileChooser fileChooser = new JFileChooser();
+                fileChooser.setSelectedFile(new File("untitled" + ext));
+                int option = fileChooser.showSaveDialog(this);
+                if (option == JFileChooser.APPROVE_OPTION) {
+                    File file = fileChooser.getSelectedFile();
 
-                try (FileWriter writer = new FileWriter(file)) {
-                    if (currentMode.equals("java") || currentMode.equals("message"))
-                        writer.write(codeArea.getText());
-                    else
-                        writer.write(analysisArea.getText());
-                    JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
-                } catch (IOException ex) {
-                    JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
+                    // Auto-append extension if missing
+                    if (!file.getName().toLowerCase().endsWith(ext)) {
+                        file = new File(file.getAbsolutePath() + ext);
+                    }
+
+                    try (FileWriter writer = new FileWriter(file)) {
+                        if (currentMode.equals("java") || currentMode.equals("message"))
+                            writer.write(codeArea.getText());
+                        else
+                            writer.write(analysisArea.getText());
+                        JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
+                    } catch (IOException ex) {
+                        JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
+                    }
                 }
             }
+
         });
 
         // Upload button that allows for txt files
@@ -213,6 +240,7 @@ public class GUI extends JFrame {
             }
         });
 
+        // Dark mode toggle
         displayBtn.addActionListener(e -> {
             // Toggle between light and dark mode
             if (codeArea.getBackground().equals(new Color(40, 44, 52))) {
@@ -229,8 +257,6 @@ public class GUI extends JFrame {
                 headingArea.setForeground(Color.BLACK);
                 analysisArea.setBackground(Color.WHITE);
                 analysisArea.setForeground(Color.BLACK);
-                svgArea.setBackground(Color.WHITE);
-                svgArea.setForeground(Color.BLACK);
                 errorArea.setBackground(new Color(230, 230, 230));
                 errorArea.setForeground(Color.BLACK);
                 displayBtn.setText("Dark Mode");
@@ -249,28 +275,27 @@ public class GUI extends JFrame {
                 headingArea.setForeground(Color.WHITE);
                 analysisArea.setBackground(new Color(40, 44, 52));
                 analysisArea.setForeground(Color.WHITE);
-                svgArea.setBackground(new Color(40, 44, 52));
-                svgArea.setForeground(Color.WHITE);
                 errorArea.setBackground(Color.DARK_GRAY);
                 errorArea.setForeground(Color.WHITE);
                 displayBtn.setText("Light Mode");
             }
-            revalidate();
-            repaint();
+
         });
 
-        runBtn.addActionListener(e ->{
+        runBtn.addActionListener(e -> {
 
-            SVG svg = new SVG();
+            svg = new SVG();
+            outFile = new File("graph.svg");
+            executed = true;
 
             try {
-                Renderer renderer = Graphviz.fromGraph(svg.g2).render(Format.PNG);
-                
-                renderer.toFile(outFile);
+
+                // for displaying svg
+                Graphviz.fromGraph(svg.getGraph()).render(Format.PNG).toFile(new File("temp_graph.svg"));
             } catch (IOException f) {
                 f.printStackTrace();
             }
-           
+
             switchMode("svg");
 
             JOptionPane.showMessageDialog(this, "Run Button pressed");
@@ -285,7 +310,7 @@ public class GUI extends JFrame {
         JButton[] allButtons = { messageBtn, svgBtn, javaBtn, analysisBtn };
         for (JButton b : allButtons) {
             if (b == active) {
-                b.setBackground(Color.GRAY);
+                b.setBackground(Color.LIGHT_GRAY);
             } else {
                 b.setBackground(Color.WHITE); // reset default
             }
@@ -300,8 +325,6 @@ public class GUI extends JFrame {
             modeBuffers.put(currentMode, codeArea.getText());
         } else if (newMode.equals("analysis"))
             modeBuffers.put(currentMode, analysisArea.getText());
-        else
-            modeBuffers.put(currentMode, svgArea.getText());
 
         // Change mode
         currentMode = newMode;
@@ -312,8 +335,6 @@ public class GUI extends JFrame {
             codeArea.setText(content);
         else if (newMode.equals("analysis"))
             analysisArea.setText(content);
-        else 
-            svgArea.setText(content);
 
         // Set heading text and activate buttons
         switch (newMode) {
@@ -323,14 +344,23 @@ public class GUI extends JFrame {
 
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
-                
-                ImageIcon icon = new ImageIcon("graph.svg");
-                JLabel label = new JLabel(icon);
+                JLabel label;
+
+                if (executed) {
+
+                    ImageIcon icon = new ImageIcon("temp_graph.svg");
+                    label = new JLabel(icon);
+                    System.out.println("1");
+                } else {
+                    label = new JLabel("No SVG generated yet. Please run the message first.");
+                    System.out.println("2");
+                }
+                System.out.println("3");
                 svgScroll = new JScrollPane(label);
 
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
-                splitPane2.setDividerLocation(100); 
-                splitPane2.setResizeWeight(0.2); 
+                splitPane2.setDividerLocation(100);
+                splitPane2.setResizeWeight(0.2);
                 setCenterComponent(splitPane2);
 
             }
@@ -340,9 +370,7 @@ public class GUI extends JFrame {
                 codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
-                splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
-                splitPane.setDividerLocation(100); 
-                splitPane.setResizeWeight(0.2); 
+                setUpCodeScroll();
                 setCenterComponent(splitPane);
 
             }
@@ -352,8 +380,8 @@ public class GUI extends JFrame {
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, analysisScroll);
-                splitPane2.setDividerLocation(100); 
-                splitPane2.setResizeWeight(0.2); 
+                splitPane2.setDividerLocation(100);
+                splitPane2.setResizeWeight(0.2);
                 setCenterComponent(splitPane2);
 
             }
@@ -364,9 +392,7 @@ public class GUI extends JFrame {
                 codeArea.setEditable(true);
                 uploadBtn.setEnabled(true);
                 runBtn.setEnabled(true);
-                splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
-                splitPane.setDividerLocation(100); 
-                splitPane.setResizeWeight(0.2); 
+                setUpCodeScroll();
                 splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
                 splitPane3.setDividerLocation(675);
                 splitPane3.setResizeWeight(0.9);
@@ -390,9 +416,9 @@ public class GUI extends JFrame {
         repaint();
     }
 
-    private void setUpCodeScroll(){
+    private void setUpCodeScroll() {
         splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
-        splitPane.setDividerLocation(100); 
-        splitPane.setResizeWeight(0.2); 
+        splitPane.setDividerLocation(100);
+        splitPane.setResizeWeight(0.2);
     }
 }
