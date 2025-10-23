@@ -32,9 +32,6 @@ public class SVG {
                 for (int i = 1; i < numNodes; i++) {
                         nodesA[i] = node("A" + (i + 1))
                                         .with(Style.INVIS, Label.of(""), Shape.POINT);
-                }
-
-                for (int i = 1; i < numNodes; i++) {
                         nodesB[i] = node("B" + (i + 1))
                                         .with(Style.INVIS, Label.of(""), Shape.POINT);
                 }
@@ -64,8 +61,6 @@ public class SVG {
 
                 for (int i = 0; i < nodesA.length - 1; i++) {
                         links[i] = nodesA[i].link(to(nodesA[i + 1]).with(Style.DOTTED, Arrow.NONE));
-                }
-                for (int i = 0; i < nodesB.length - 1; i++) {
                         links[i + numNodes - 1] = nodesB[i].link(to(nodesB[i + 1]).with(Style.DOTTED, Arrow.NONE));
                 }
 
