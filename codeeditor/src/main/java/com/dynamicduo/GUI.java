@@ -51,6 +51,15 @@ public class GUI extends JFrame {
         javaBtn = new JButton("Java Code");
         analysisBtn = new JButton("Analysis");
 
+        messageBtn.setPreferredSize(new Dimension(100, 35));
+        messageBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        svgBtn.setPreferredSize(new Dimension(80, 35));
+        svgBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        javaBtn.setPreferredSize(new Dimension(110, 35));
+        javaBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        analysisBtn.setPreferredSize(new Dimension(100, 35));
+        analysisBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+
         navPanel.add(messageBtn);
         navPanel.add(svgBtn);
         navPanel.add(javaBtn);
@@ -66,6 +75,17 @@ public class GUI extends JFrame {
         saveBtn = new JButton("Save");
         uploadBtn = new JButton("Upload");
         displayBtn = new JButton("Dark Mode");
+
+        System.out.println(runBtn.getBackground());
+
+        runBtn.setPreferredSize(new Dimension(80, 35));
+        runBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        saveBtn.setPreferredSize(new Dimension(80, 35));
+        saveBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        uploadBtn.setPreferredSize(new Dimension(100, 35));
+        uploadBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        displayBtn.setPreferredSize(new Dimension(120, 35));
+        displayBtn.setFont(new Font("Verdana", Font.BOLD, 13));
 
         buttonPanel.add(runBtn);
         buttonPanel.add(saveBtn);
@@ -312,7 +332,7 @@ public class GUI extends JFrame {
             if (b == active) {
                 b.setBackground(Color.LIGHT_GRAY);
             } else {
-                b.setBackground(Color.WHITE); // reset default
+                b.setBackground(new Color(238, 238, 238)); // reset default
             }
         }
     }
