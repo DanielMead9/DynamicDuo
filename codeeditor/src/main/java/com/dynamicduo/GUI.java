@@ -8,16 +8,13 @@ import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
 
 import guru.nidi.graphviz.engine.*;
-import guru.nidi.graphviz.engine.Renderer;
-import guru.nidi.graphviz.model.*;
-import guru.nidi.graphviz.model.Factory.*;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 
 public class GUI extends JFrame {
 
-    private JTextArea headingArea, svgArea, analysisArea, errorArea;
+    private JTextArea headingArea, analysisArea, errorArea;
     private JScrollPane headingScroll, svgScroll, analysisScroll, errorScroll;
 
     private RSyntaxTextArea codeArea;
@@ -285,8 +282,9 @@ public class GUI extends JFrame {
         runBtn.addActionListener(e -> {
 
             String[] messages = { "Message 1", "Message 2" };
+            String[] passer = { "Alice", "Bob" };
 
-            svg = new SVG(3, "Alice", "Bob", messages);
+            svg = new SVG(3, "Alice", "Bob", messages, passer);
             outFile = new File("graph.svg");
             executed = true;
 
@@ -352,12 +350,12 @@ public class GUI extends JFrame {
 
                     ImageIcon icon = new ImageIcon("temp_graph.svg");
                     label = new JLabel(icon);
-                    System.out.println("1");
+
                 } else {
-                    label = new JLabel("No SVG generated yet. Please run the message first.");
-                    System.out.println("2");
+                    label = new JLabel("No SVG generated yet. Please run the message first.", SwingConstants.CENTER);
+
                 }
-                System.out.println("3");
+
                 svgScroll = new JScrollPane(label);
 
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);

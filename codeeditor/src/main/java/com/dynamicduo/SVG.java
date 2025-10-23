@@ -11,15 +11,10 @@ import guru.nidi.graphviz.attribute.Rank.RankDir;
 public class SVG {
         private Graph g;
 
-        public SVG(int numNodes, String p1, String p2, String[] messages) {
+        public SVG(int numNodes, String p1, String p2, String[] messages, String[] passer) {
 
                 Node[] nodesA = new Node[numNodes];
                 Node[] nodesB = new Node[numNodes];
-
-                System.out.println(numNodes);
-                System.out.println(p1);
-                System.out.println(p2);
-                System.out.println(messages.length);
 
                 Node A1 = node(p1)
                                 .with(Attributes.attr("width", "1"))
@@ -68,10 +63,10 @@ public class SVG {
                 LinkSource[] links = new LinkSource[numNodes * 3 - 2];
 
                 for (int i = 0; i < nodesA.length - 1; i++) {
-                        links[i] = nodesA[i].link(to(nodesA[i + 1]).with(Style.SOLID, Arrow.NONE));
+                        links[i] = nodesA[i].link(to(nodesA[i + 1]).with(Style.DOTTED, Arrow.NONE));
                 }
                 for (int i = 0; i < nodesB.length - 1; i++) {
-                        links[i + numNodes - 1] = nodesB[i].link(to(nodesB[i + 1]).with(Style.SOLID, Arrow.NONE));
+                        links[i + numNodes - 1] = nodesB[i].link(to(nodesB[i + 1]).with(Style.DOTTED, Arrow.NONE));
                 }
 
                 // LinkSource[] links2 = new LinkSource[numNodes];
@@ -79,13 +74,14 @@ public class SVG {
                 // links2[0] = nodesA[0].link(to(nodesB[0]).with("style", "invis"));
                 links[numNodes * 2 - 2] = nodesA[0].link(to(nodesB[0]).with("style", "invis"));
 
-                System.out.println(nodesA.length);
-                System.out.println(nodesB.length);
-                // System.out.println(links2.length);
-
                 for (int i = 1; i < nodesA.length; i++) {
-                        links[i + numNodes * 2 - 2] = nodesA[i].link(to(nodesB[i]).with(Label.of(messages[i - 1])));
-                        System.out.println(i);
+                        if (passer[i - 1].equals(p1))
+                                links[i + numNodes * 2 - 2] = nodesA[i]
+                                                .link(to(nodesB[i]).with(Label.of(messages[i - 1])));
+                        else
+                                links[i + numNodes * 2 - 2] = nodesB[i]
+                                                .link(to(nodesA[i]).with(Label.of(messages[i - 1])));
+
                 }
 
                 /*
