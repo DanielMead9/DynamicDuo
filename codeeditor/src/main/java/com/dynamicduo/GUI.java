@@ -284,7 +284,9 @@ public class GUI extends JFrame {
 
         runBtn.addActionListener(e -> {
 
-            svg = new SVG();
+            String[] messages = { "Message 1", "Message 2" };
+
+            svg = new SVG(3, "Alice", "Bob", messages);
             outFile = new File("graph.svg");
             executed = true;
 
