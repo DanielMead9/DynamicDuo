@@ -30,7 +30,6 @@ public class GUI extends JFrame {
 
     private SVG svg;
     private boolean executed = false;
-    private File outFile;
 
     public GUI() {
         setTitle("Security Message App");
@@ -75,8 +74,6 @@ public class GUI extends JFrame {
         saveBtn = new JButton("Save");
         uploadBtn = new JButton("Upload");
         displayBtn = new JButton("Dark Mode");
-
-        System.out.println(runBtn.getBackground());
 
         runBtn.setPreferredSize(new Dimension(80, 35));
         runBtn.setFont(new Font("Verdana", Font.BOLD, 13));
@@ -305,7 +302,6 @@ public class GUI extends JFrame {
             String[] passer = { "Alice", "Bob" };
 
             svg = new SVG(3, "Alice", "Bob", messages, passer);
-            outFile = new File("graph.svg");
             executed = true;
 
             try {
