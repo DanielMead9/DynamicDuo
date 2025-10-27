@@ -392,6 +392,12 @@ public class GUI extends JFrame {
             }
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
+                if(executed){
+                    analysisArea.setText("Analysis Results");
+                } else {
+                    analysisArea.setText("No analysis available. Please run the message first.");
+                }
+                
                 highlightActiveMode(analysisBtn);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
