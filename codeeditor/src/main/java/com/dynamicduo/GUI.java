@@ -383,6 +383,11 @@ public class GUI extends JFrame {
             case "java" -> {
                 headingArea.setText("Java Code \n(This is the starter java code)");
                 highlightActiveMode(javaBtn);
+                if(executed){
+                    codeArea.setText("Starter Java Code");
+                } else {
+                    codeArea.setText("No code available. Please run the message first.");
+                }
                 codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
