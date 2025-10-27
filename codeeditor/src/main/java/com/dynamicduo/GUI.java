@@ -383,6 +383,11 @@ public class GUI extends JFrame {
             case "java" -> {
                 headingArea.setText("Java Code \n(This is the starter java code)");
                 highlightActiveMode(javaBtn);
+                if(executed){
+                    codeArea.setText("Starter Java Code");
+                } else {
+                    codeArea.setText("No code available. Please run the message first.");
+                }
                 codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
@@ -392,6 +397,12 @@ public class GUI extends JFrame {
             }
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
+                if(executed){
+                    analysisArea.setText("Analysis Results");
+                } else {
+                    analysisArea.setText("No analysis available. Please run the message first.");
+                }
+                
                 highlightActiveMode(analysisBtn);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
