@@ -7,6 +7,8 @@ import java.util.HashMap;
 import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
 
+import com.kitfox.svg.app.beans.SVGIcon;
+
 import guru.nidi.graphviz.engine.*;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -30,6 +32,7 @@ public class GUI extends JFrame {
 
     private SVG svg;
     private boolean executed = false;
+    private File outfile = new File("temp_graph.svg");
 
     public GUI() {
         setTitle("Security Message App");
@@ -298,16 +301,24 @@ public class GUI extends JFrame {
 
         runBtn.addActionListener(e -> {
 
-            String[] messages = { "Message 1", "Message 2" };
-            String[] passer = { "Alice", "Bob" };
+            /*
+             * String[] messages = { "Message 1", "Message 2" };
+             * String[] passer = { "Alice", "Bob" };
+             * 
+             * svg = new SVG(3, "Alice", "Bob", messages, passer);
+             * 
+             */
+            String[] messages = { "Message 1", "Message 2", "Message 3", "Message 4", "Message 5", "Message 6" };
+            String[] passer = { "Alice", "Bob", "Alice", "Alice", "Bob", "Alice" };
 
-            svg = new SVG(3, "Alice", "Bob", messages, passer);
+            svg = new SVG(7, "Alice", "Bob", messages, passer);
+
             executed = true;
 
             try {
 
                 // for displaying svg
-                Graphviz.fromGraph(svg.getGraph()).render(Format.PNG).toFile(new File("temp_graph.png"));
+                Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toFile(outfile);
             } catch (IOException f) {
                 f.printStackTrace();
             }
@@ -364,7 +375,21 @@ public class GUI extends JFrame {
 
                 if (executed) {
 
-                    ImageIcon icon = new ImageIcon("temp_graph.png");
+                    // Fix for invisible strokes in SVG
+                    try {
+                        String contentFile = new String(java.nio.file.Files.readAllBytes(outfile.toPath()));
+                        contentFile = contentFile.replace("stroke=\"transparent\"", "stroke=\"none\"");
+                        java.nio.file.Files.write(outfile.toPath(), contentFile.getBytes());
+                    } catch (IOException ioex) {
+                        ioex.printStackTrace();
+                    }
+
+                    // for displaying svg
+                    SVGIcon icon = new SVGIcon();
+                    icon.setSvgURI(outfile.toURI());
+                    icon.setAntiAlias(true);
+                    icon.setAutosize(SVGIcon.AUTOSIZE_BESTFIT);
+                    icon.setPreferredSize(new Dimension(600, 400)); // optional default size
                     label = new JLabel(icon);
 
                 } else {
@@ -383,7 +408,7 @@ public class GUI extends JFrame {
             case "java" -> {
                 headingArea.setText("Java Code \n(This is the starter java code)");
                 highlightActiveMode(javaBtn);
-                if(executed){
+                if (executed) {
                     codeArea.setText("Starter Java Code");
                 } else {
                     codeArea.setText("No code available. Please run the message first.");
@@ -397,12 +422,12 @@ public class GUI extends JFrame {
             }
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
-                if(executed){
+                if (executed) {
                     analysisArea.setText("Analysis Results");
                 } else {
                     analysisArea.setText("No analysis available. Please run the message first.");
                 }
-                
+
                 highlightActiveMode(analysisBtn);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
