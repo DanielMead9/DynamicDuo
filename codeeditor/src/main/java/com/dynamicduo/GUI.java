@@ -307,7 +307,7 @@ public class GUI extends JFrame {
             try {
 
                 // for displaying svg
-                Graphviz.fromGraph(svg.getGraph()).render(Format.PNG).toFile(new File("temp_graph.svg"));
+                Graphviz.fromGraph(svg.getGraph()).render(Format.PNG).toFile(new File("temp_graph.png"));
             } catch (IOException f) {
                 f.printStackTrace();
             }
@@ -364,7 +364,7 @@ public class GUI extends JFrame {
 
                 if (executed) {
 
-                    ImageIcon icon = new ImageIcon("temp_graph.svg");
+                    ImageIcon icon = new ImageIcon("temp_graph.png");
                     label = new JLabel(icon);
 
                 } else {
