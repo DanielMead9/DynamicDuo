@@ -107,6 +107,7 @@ public class GUI extends JFrame implements KeyListener {
         headingArea.setBackground(new Color(230, 230, 230));
 
         headingScroll = new JScrollPane(headingArea);
+        headingScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Set up Analysis Area
         analysisArea = new JTextArea();
@@ -115,6 +116,7 @@ public class GUI extends JFrame implements KeyListener {
         analysisArea.setEditable(false);
 
         analysisScroll = new JScrollPane(analysisArea);
+        analysisScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Code Screen
         codeArea = new RSyntaxTextArea(20, 60);
@@ -134,6 +136,7 @@ public class GUI extends JFrame implements KeyListener {
         codeScroll = new RTextScrollPane(codeArea);
         codeScroll.getGutter().setLineNumberColor(Color.BLACK);
         codeScroll.getGutter().setBackground(Color.WHITE);
+        codeScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Create Error handler area for Message mode
         errorArea = new JTextArea();
@@ -144,6 +147,7 @@ public class GUI extends JFrame implements KeyListener {
         errorArea.setText("Error Handler");
 
         errorScroll = new JScrollPane(errorArea);
+        errorScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Tab Switches
         messageBtn.addActionListener(e -> switchMode("message"));
@@ -401,10 +405,11 @@ public class GUI extends JFrame implements KeyListener {
                 }
 
                 svgScroll = new JScrollPane(label);
+                svgScroll.getVerticalScrollBar().setUnitIncrement(15);
 
                 splitPane4 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
-                splitPane4.setDividerLocation(100);
-                splitPane4.setResizeWeight(0.2);
+
+                splitPane4.setResizeWeight(0.15);
                 setCenterComponent(splitPane4);
 
                 zoom(splitPane4);
@@ -443,8 +448,7 @@ public class GUI extends JFrame implements KeyListener {
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, analysisScroll);
-                splitPane2.setDividerLocation(100);
-                splitPane2.setResizeWeight(0.2);
+                splitPane2.setResizeWeight(0.15);
                 setCenterComponent(splitPane2);
 
                 zoom(splitPane2);
@@ -462,8 +466,7 @@ public class GUI extends JFrame implements KeyListener {
                 runBtn.setEnabled(true);
                 setUpCodeScroll();
                 splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
-                splitPane3.setDividerLocation(675);
-                splitPane3.setResizeWeight(0.9);
+                splitPane3.setResizeWeight(0.8);
                 setCenterComponent(splitPane3);
 
                 zoom(splitPane3);
@@ -493,8 +496,8 @@ public class GUI extends JFrame implements KeyListener {
 
     private void setUpCodeScroll() {
         splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
-        splitPane.setDividerLocation(100);
-        splitPane.setResizeWeight(0.2);
+
+        splitPane.setResizeWeight(0.25);
     }
 
     @Override
