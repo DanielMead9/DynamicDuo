@@ -107,6 +107,7 @@ public class GUI extends JFrame implements KeyListener {
         headingArea.setBackground(new Color(230, 230, 230));
 
         headingScroll = new JScrollPane(headingArea);
+        headingScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Set up Analysis Area
         analysisArea = new JTextArea();
@@ -115,6 +116,7 @@ public class GUI extends JFrame implements KeyListener {
         analysisArea.setEditable(false);
 
         analysisScroll = new JScrollPane(analysisArea);
+        analysisScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Code Screen
         codeArea = new RSyntaxTextArea(20, 60);
@@ -134,6 +136,7 @@ public class GUI extends JFrame implements KeyListener {
         codeScroll = new RTextScrollPane(codeArea);
         codeScroll.getGutter().setLineNumberColor(Color.BLACK);
         codeScroll.getGutter().setBackground(Color.WHITE);
+        codeScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Create Error handler area for Message mode
         errorArea = new JTextArea();
@@ -144,6 +147,7 @@ public class GUI extends JFrame implements KeyListener {
         errorArea.setText("Error Handler");
 
         errorScroll = new JScrollPane(errorArea);
+        errorScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Tab Switches
         messageBtn.addActionListener(e -> switchMode("message"));
@@ -401,6 +405,7 @@ public class GUI extends JFrame implements KeyListener {
                 }
 
                 svgScroll = new JScrollPane(label);
+                svgScroll.getVerticalScrollBar().setUnitIncrement(15);
 
                 splitPane4 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
                 splitPane4.setDividerLocation(100);
