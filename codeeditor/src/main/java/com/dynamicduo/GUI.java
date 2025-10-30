@@ -408,8 +408,8 @@ public class GUI extends JFrame implements KeyListener {
                 svgScroll.getVerticalScrollBar().setUnitIncrement(15);
 
                 splitPane4 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
-                splitPane4.setDividerLocation(100);
-                splitPane4.setResizeWeight(0.2);
+
+                splitPane4.setResizeWeight(0.15);
                 setCenterComponent(splitPane4);
 
                 zoom(splitPane4);
@@ -448,8 +448,7 @@ public class GUI extends JFrame implements KeyListener {
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, analysisScroll);
-                splitPane2.setDividerLocation(100);
-                splitPane2.setResizeWeight(0.2);
+                splitPane2.setResizeWeight(0.15);
                 setCenterComponent(splitPane2);
 
                 zoom(splitPane2);
@@ -467,8 +466,7 @@ public class GUI extends JFrame implements KeyListener {
                 runBtn.setEnabled(true);
                 setUpCodeScroll();
                 splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
-                splitPane3.setDividerLocation(675);
-                splitPane3.setResizeWeight(0.9);
+                splitPane3.setResizeWeight(0.8);
                 setCenterComponent(splitPane3);
 
                 zoom(splitPane3);
@@ -498,8 +496,8 @@ public class GUI extends JFrame implements KeyListener {
 
     private void setUpCodeScroll() {
         splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
-        splitPane.setDividerLocation(100);
-        splitPane.setResizeWeight(0.2);
+
+        splitPane.setResizeWeight(0.25);
     }
 
     @Override
