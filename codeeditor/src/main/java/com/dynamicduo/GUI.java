@@ -8,7 +8,6 @@ import java.io.*;
 import java.util.HashMap;
 import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
-import java.awt.geom.AffineTransform;
 
 import com.kitfox.svg.app.beans.SVGIcon;
 
@@ -29,7 +28,6 @@ public class GUI extends JFrame implements KeyListener {
     private final HashMap<String, String> modeBuffers = new HashMap<>();
     JSplitPane splitPane, splitPane2, splitPane3, splitPane4;
 
-    // Mode buttons (need references for highlighting)
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
 
@@ -59,14 +57,14 @@ public class GUI extends JFrame implements KeyListener {
         javaBtn = new JButton("Java Code");
         analysisBtn = new JButton("Analysis");
 
-        messageBtn.setPreferredSize(new Dimension(100, 35));
-        messageBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        messageBtn.setPreferredSize(new Dimension(105, 35));
+        messageBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         svgBtn.setPreferredSize(new Dimension(80, 35));
-        svgBtn.setFont(new Font("Verdana", Font.BOLD, 13));
-        javaBtn.setPreferredSize(new Dimension(110, 35));
-        javaBtn.setFont(new Font("Verdana", Font.BOLD, 13));
-        analysisBtn.setPreferredSize(new Dimension(100, 35));
-        analysisBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        svgBtn.setFont(new Font("Verdana", Font.BOLD, 14));
+        javaBtn.setPreferredSize(new Dimension(120, 35));
+        javaBtn.setFont(new Font("Verdana", Font.BOLD, 14));
+        analysisBtn.setPreferredSize(new Dimension(105, 35));
+        analysisBtn.setFont(new Font("Verdana", Font.BOLD, 14));
 
         navPanel.add(messageBtn);
         navPanel.add(svgBtn);
@@ -85,13 +83,13 @@ public class GUI extends JFrame implements KeyListener {
         displayBtn = new JButton("Dark Mode");
 
         runBtn.setPreferredSize(new Dimension(80, 35));
-        runBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        runBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         saveBtn.setPreferredSize(new Dimension(80, 35));
-        saveBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        saveBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         uploadBtn.setPreferredSize(new Dimension(100, 35));
-        uploadBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        uploadBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         displayBtn.setPreferredSize(new Dimension(120, 35));
-        displayBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        displayBtn.setFont(new Font("Verdana", Font.BOLD, 14));
 
         buttonPanel.add(runBtn);
         buttonPanel.add(saveBtn);
@@ -469,6 +467,8 @@ public class GUI extends JFrame implements KeyListener {
                 setCenterComponent(splitPane3);
 
                 zoom(splitPane3);
+                codeArea.addKeyListener(this);
+                codeArea.setFocusable(true);
                 splitPane3.addKeyListener(this);
                 splitPane3.setFocusable(true);
                 splitPane3.requestFocusInWindow();
