@@ -2,17 +2,21 @@ package com.dynamicduo;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.io.*;
 import java.util.HashMap;
 import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
+
+import com.kitfox.svg.app.beans.SVGIcon;
 
 import guru.nidi.graphviz.engine.*;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 
-public class GUI extends JFrame {
+public class GUI extends JFrame implements KeyListener {
 
     private JTextArea headingArea, analysisArea, errorArea;
     private JScrollPane headingScroll, svgScroll, analysisScroll, errorScroll;
@@ -22,20 +26,24 @@ public class GUI extends JFrame {
 
     private String currentMode = "message"; // start on Message tab
     private final HashMap<String, String> modeBuffers = new HashMap<>();
-    JSplitPane splitPane, splitPane2, splitPane3;
+    JSplitPane splitPane, splitPane2, splitPane3, splitPane4;
 
-    // Mode buttons (need references for highlighting)
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
 
     private SVG svg;
-    private boolean executed = false;
+    private boolean executed = false, dark = false;
+    private JLabel label = new JLabel();
+    private File outfile = new File("temp_graph.svg");
+    private double zoomFactor = 1.0;
 
     public GUI() {
         setTitle("Security Message App");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(900, 600);
         setLocationRelativeTo(null);
+        addKeyListener(this);
+        setFocusable(true);
 
         setLayout(new BorderLayout());
 
@@ -50,14 +58,14 @@ public class GUI extends JFrame {
         javaBtn = new JButton("Java Code");
         analysisBtn = new JButton("Analysis");
 
-        messageBtn.setPreferredSize(new Dimension(100, 35));
-        messageBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        messageBtn.setPreferredSize(new Dimension(105, 35));
+        messageBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         svgBtn.setPreferredSize(new Dimension(80, 35));
-        svgBtn.setFont(new Font("Verdana", Font.BOLD, 13));
-        javaBtn.setPreferredSize(new Dimension(110, 35));
-        javaBtn.setFont(new Font("Verdana", Font.BOLD, 13));
-        analysisBtn.setPreferredSize(new Dimension(100, 35));
-        analysisBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        svgBtn.setFont(new Font("Verdana", Font.BOLD, 14));
+        javaBtn.setPreferredSize(new Dimension(120, 35));
+        javaBtn.setFont(new Font("Verdana", Font.BOLD, 14));
+        analysisBtn.setPreferredSize(new Dimension(105, 35));
+        analysisBtn.setFont(new Font("Verdana", Font.BOLD, 14));
 
         navPanel.add(messageBtn);
         navPanel.add(svgBtn);
@@ -76,13 +84,13 @@ public class GUI extends JFrame {
         displayBtn = new JButton("Dark Mode");
 
         runBtn.setPreferredSize(new Dimension(80, 35));
-        runBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        runBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         saveBtn.setPreferredSize(new Dimension(80, 35));
-        saveBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        saveBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         uploadBtn.setPreferredSize(new Dimension(100, 35));
-        uploadBtn.setFont(new Font("Verdana", Font.BOLD, 13));
-        displayBtn.setPreferredSize(new Dimension(120, 35));
-        displayBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+        uploadBtn.setFont(new Font("Verdana", Font.BOLD, 14));
+        displayBtn.setPreferredSize(new Dimension(125, 35));
+        displayBtn.setFont(new Font("Verdana", Font.BOLD, 14));
 
         buttonPanel.add(runBtn);
         buttonPanel.add(saveBtn);
@@ -100,6 +108,7 @@ public class GUI extends JFrame {
         headingArea.setBackground(new Color(230, 230, 230));
 
         headingScroll = new JScrollPane(headingArea);
+        headingScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Set up Analysis Area
         analysisArea = new JTextArea();
@@ -108,6 +117,7 @@ public class GUI extends JFrame {
         analysisArea.setEditable(false);
 
         analysisScroll = new JScrollPane(analysisArea);
+        analysisScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Code Screen
         codeArea = new RSyntaxTextArea(20, 60);
@@ -127,6 +137,7 @@ public class GUI extends JFrame {
         codeScroll = new RTextScrollPane(codeArea);
         codeScroll.getGutter().setLineNumberColor(Color.BLACK);
         codeScroll.getGutter().setBackground(Color.WHITE);
+        codeScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Create Error handler area for Message mode
         errorArea = new JTextArea();
@@ -137,6 +148,7 @@ public class GUI extends JFrame {
         errorArea.setText("Error Handler");
 
         errorScroll = new JScrollPane(errorArea);
+        errorScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
 
         // Tab Switches
         messageBtn.addActionListener(e -> switchMode("message"));
@@ -150,7 +162,6 @@ public class GUI extends JFrame {
             // Suggest extension based on mode
             String ext = switch (currentMode) {
                 case "java" -> ".java";
-                case "svg" -> ".svg";
                 case "analysis" -> ".txt";
                 default -> ".txt";
             };
@@ -205,7 +216,7 @@ public class GUI extends JFrame {
                     }
                 }
             }
-
+            refocus();
         });
 
         // Upload button that allows for txt files
@@ -252,12 +263,13 @@ public class GUI extends JFrame {
                 }
 
             }
+            refocus();
         });
 
         // Dark mode toggle
         displayBtn.addActionListener(e -> {
             // Toggle between light and dark mode
-            if (codeArea.getBackground().equals(new Color(40, 44, 52))) {
+            if (dark) {
                 // Switch to light mode
                 codeScroll.getGutter().setLineNumberColor(Color.BLACK);
                 codeScroll.getGutter().setBackground(Color.WHITE);
@@ -274,6 +286,8 @@ public class GUI extends JFrame {
                 errorArea.setBackground(new Color(230, 230, 230));
                 errorArea.setForeground(Color.BLACK);
                 displayBtn.setText("Dark Mode");
+                dark = false;
+                labelDark();
 
             } else {
                 // Switch to dark mode
@@ -292,22 +306,33 @@ public class GUI extends JFrame {
                 errorArea.setBackground(Color.DARK_GRAY);
                 errorArea.setForeground(Color.WHITE);
                 displayBtn.setText("Light Mode");
+                dark = true;
+                labelDark();
             }
+            refocus();
 
         });
 
         runBtn.addActionListener(e -> {
 
-            String[] messages = { "Message 1", "Message 2" };
-            String[] passer = { "Alice", "Bob" };
+            /*
+             * String[] messages = { "Message 1", "Message 2" };
+             * String[] passer = { "Alice", "Bob" };
+             * 
+             * svg = new SVG(3, "Alice", "Bob", messages, passer);
+             * 
+             */
+            String[] messages = { "Message 1", "Message 2", "Message 3", "Message 4", "Message 5", "Message 6" };
+            String[] passer = { "Alice", "Bob", "Alice", "Alice", "Bob", "Alice" };
 
-            svg = new SVG(3, "Alice", "Bob", messages, passer);
+            svg = new SVG(7, "Alice", "Bob", messages, passer);
+
             executed = true;
 
             try {
 
                 // for displaying svg
-                Graphviz.fromGraph(svg.getGraph()).render(Format.PNG).toFile(new File("temp_graph.svg"));
+                Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toFile(outfile);
             } catch (IOException f) {
                 f.printStackTrace();
             }
@@ -336,7 +361,6 @@ public class GUI extends JFrame {
     // Switch editor between modes and remember content
     private void switchMode(String newMode) {
         // Save current bottom section content into buffer
-
         if (currentMode.equals("java") || currentMode.equals("message")) {
             modeBuffers.put(currentMode, codeArea.getText());
         } else if (newMode.equals("analysis"))
@@ -352,6 +376,7 @@ public class GUI extends JFrame {
         else if (newMode.equals("analysis"))
             analysisArea.setText(content);
 
+        zoomFactor = 1.0;
         // Set heading text and activate buttons
         switch (newMode) {
             case "svg" -> {
@@ -360,11 +385,24 @@ public class GUI extends JFrame {
 
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
-                JLabel label;
 
                 if (executed) {
 
-                    ImageIcon icon = new ImageIcon("temp_graph.svg");
+                    // Fix for invisible strokes in SVG
+                    try {
+                        String contentFile = new String(java.nio.file.Files.readAllBytes(outfile.toPath()));
+                        contentFile = contentFile.replace("stroke=\"transparent\"", "stroke=\"none\"");
+                        java.nio.file.Files.write(outfile.toPath(), contentFile.getBytes());
+                    } catch (IOException ioex) {
+                        ioex.printStackTrace();
+                    }
+
+                    // for displaying svg
+                    SVGIcon icon = new SVGIcon();
+                    icon.setSvgURI(outfile.toURI());
+                    icon.setAntiAlias(true);
+                    icon.setAutosize(SVGIcon.AUTOSIZE_BESTFIT);
+                    icon.setPreferredSize(new Dimension(600, 400)); // optional default size
                     label = new JLabel(icon);
 
                 } else {
@@ -373,38 +411,57 @@ public class GUI extends JFrame {
                 }
 
                 svgScroll = new JScrollPane(label);
+                svgScroll.getVerticalScrollBar().setUnitIncrement(15);
 
-                splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
-                splitPane2.setDividerLocation(100);
-                splitPane2.setResizeWeight(0.2);
-                setCenterComponent(splitPane2);
+                splitPane4 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
 
+                splitPane4.setResizeWeight(0.15);
+                setCenterComponent(splitPane4);
+
+                zoom(splitPane4);
+                splitPane4.addKeyListener(this);
+                splitPane4.setFocusable(true);
+                splitPane4.requestFocusInWindow();
+                labelDark();
             }
             case "java" -> {
                 headingArea.setText("Java Code \n(This is the starter java code)");
                 highlightActiveMode(javaBtn);
+                if (executed) {
+                    codeArea.setText("Starter Java Code");
+                } else {
+                    codeArea.setText("No code available. Please run the message first.");
+                }
                 codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
                 setUpCodeScroll();
                 setCenterComponent(splitPane);
+                zoom(splitPane);
+                splitPane.addKeyListener(this);
+                splitPane.setFocusable(true);
+                splitPane.requestFocusInWindow();
 
             }
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
-                if(executed){
+                if (executed) {
                     analysisArea.setText("Analysis Results");
                 } else {
                     analysisArea.setText("No analysis available. Please run the message first.");
                 }
-                
+
                 highlightActiveMode(analysisBtn);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, analysisScroll);
-                splitPane2.setDividerLocation(100);
-                splitPane2.setResizeWeight(0.2);
+                splitPane2.setResizeWeight(0.15);
                 setCenterComponent(splitPane2);
+
+                zoom(splitPane2);
+                splitPane2.addKeyListener(this);
+                splitPane2.setFocusable(true);
+                splitPane2.requestFocusInWindow();
 
             }
             case "message" -> {
@@ -416,9 +473,13 @@ public class GUI extends JFrame {
                 runBtn.setEnabled(true);
                 setUpCodeScroll();
                 splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
-                splitPane3.setDividerLocation(675);
-                splitPane3.setResizeWeight(0.9);
+                splitPane3.setResizeWeight(0.8);
                 setCenterComponent(splitPane3);
+
+                zoom(splitPane3);
+                splitPane3.addKeyListener(this);
+                splitPane3.setFocusable(true);
+                splitPane3.requestFocusInWindow();
 
             }
         }
@@ -440,7 +501,112 @@ public class GUI extends JFrame {
 
     private void setUpCodeScroll() {
         splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
-        splitPane.setDividerLocation(100);
-        splitPane.setResizeWeight(0.2);
+
+        splitPane.setResizeWeight(0.25);
     }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        JSplitPane ext = switch (currentMode) {
+            case "java" -> splitPane;
+            case "svg" -> splitPane4;
+            case "analysis" -> splitPane2;
+            default -> splitPane3;
+        };
+        if (e.getKeyCode() == KeyEvent.VK_EQUALS && e.isControlDown()) {
+            zoomFactor += .1; // zoom in
+            zoom(ext);
+
+            System.out.println("Zoom In");
+        } else if (e.getKeyCode() == KeyEvent.VK_MINUS && e.isControlDown()) {
+            zoomFactor -= .1; // zoom out
+            zoom(ext);
+
+            System.out.println("Zoom Out");
+        } else if (e.getKeyCode() == KeyEvent.VK_0 && e.isControlDown()) {
+            zoomFactor = 1.0; // reset zoom
+            zoom(ext);
+
+            System.out.println("Zoom Reset");
+        }
+    }
+
+    public void zoom(JSplitPane ext) {
+        Component[] arr = new Component[3];
+        arr[0] = ext.getTopComponent();
+        arr[1] = ext.getBottomComponent();
+
+        int num = 2;
+
+        if (arr[0] instanceof JSplitPane inner) {
+            arr[0] = inner.getTopComponent();
+            arr[2] = inner.getBottomComponent();
+
+            num = 3;
+        }
+
+        for (int i = 0; i < num; i++) {
+
+            if (arr[i] instanceof JScrollPane) {
+                JScrollPane scrollPane = (JScrollPane) arr[i];
+                JViewport viewport = scrollPane.getViewport();
+                Component view = viewport.getView();
+
+                if (view instanceof JTextArea textArea) {
+                    textArea.setFont(textArea.getFont().deriveFont((float) (16f * zoomFactor)));
+                } else if (view instanceof JLabel label && currentMode.equals("svg") && executed) {
+                    SVGIcon icon = new SVGIcon();
+                    icon.setSvgURI(outfile.toURI());
+                    icon.setAntiAlias(true);
+                    icon.setAutosize(SVGIcon.AUTOSIZE_BESTFIT);
+
+                    // Original dimensions
+                    int originalWidth = icon.getIconWidth();
+                    int originalHeight = icon.getIconHeight();
+
+                    // Apply zoom factor
+                    int newWidth = (int) (originalWidth * zoomFactor);
+                    int newHeight = (int) (originalHeight * zoomFactor);
+
+                    icon.setPreferredSize(new Dimension(newWidth, newHeight));
+                    label.setIcon(icon);
+                } else if (view instanceof RSyntaxTextArea rSyntaxTextArea) {
+                    rSyntaxTextArea.setFont(rSyntaxTextArea.getFont().deriveFont((float) (14f * zoomFactor)));
+                } else if (view instanceof JLabel label) {
+                    label.setFont(label.getFont().deriveFont((float) (14f * zoomFactor)));
+                }
+            }
+        }
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e) {
+    }
+
+    public void labelDark() {
+        if (dark) {
+            label.setBackground(new Color(40, 44, 52));
+            label.setForeground(Color.WHITE);
+        } else {
+            label.setBackground(Color.LIGHT_GRAY);
+            label.setForeground(Color.BLACK);
+        }
+
+        label.setOpaque(true);
+    }
+
+    public void refocus() {
+        JSplitPane ext = switch (currentMode) {
+            case "java" -> splitPane;
+            case "svg" -> splitPane4;
+            case "analysis" -> splitPane2;
+            default -> splitPane3;
+        };
+        ext.requestFocusInWindow();
+    }
+
 }
