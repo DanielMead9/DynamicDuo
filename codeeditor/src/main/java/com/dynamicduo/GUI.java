@@ -89,7 +89,7 @@ public class GUI extends JFrame implements KeyListener {
         saveBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         uploadBtn.setPreferredSize(new Dimension(100, 35));
         uploadBtn.setFont(new Font("Verdana", Font.BOLD, 14));
-        displayBtn.setPreferredSize(new Dimension(120, 35));
+        displayBtn.setPreferredSize(new Dimension(125, 35));
         displayBtn.setFont(new Font("Verdana", Font.BOLD, 14));
 
         buttonPanel.add(runBtn);
@@ -216,7 +216,7 @@ public class GUI extends JFrame implements KeyListener {
                     }
                 }
             }
-
+            refocus();
         });
 
         // Upload button that allows for txt files
@@ -263,6 +263,7 @@ public class GUI extends JFrame implements KeyListener {
                 }
 
             }
+            refocus();
         });
 
         // Dark mode toggle
@@ -308,6 +309,7 @@ public class GUI extends JFrame implements KeyListener {
                 dark = true;
                 labelDark();
             }
+            refocus();
 
         });
 
@@ -475,8 +477,6 @@ public class GUI extends JFrame implements KeyListener {
                 setCenterComponent(splitPane3);
 
                 zoom(splitPane3);
-                codeArea.addKeyListener(this);
-                codeArea.setFocusable(true);
                 splitPane3.addKeyListener(this);
                 splitPane3.setFocusable(true);
                 splitPane3.requestFocusInWindow();
@@ -514,12 +514,12 @@ public class GUI extends JFrame implements KeyListener {
             default -> splitPane3;
         };
         if (e.getKeyCode() == KeyEvent.VK_EQUALS && e.isControlDown()) {
-            zoomFactor *= 1.1; // zoom in
+            zoomFactor += .1; // zoom in
             zoom(ext);
 
             System.out.println("Zoom In");
         } else if (e.getKeyCode() == KeyEvent.VK_MINUS && e.isControlDown()) {
-            zoomFactor /= 1.1; // zoom out
+            zoomFactor -= .1; // zoom out
             zoom(ext);
 
             System.out.println("Zoom Out");
@@ -597,6 +597,16 @@ public class GUI extends JFrame implements KeyListener {
         }
 
         label.setOpaque(true);
+    }
+
+    public void refocus() {
+        JSplitPane ext = switch (currentMode) {
+            case "java" -> splitPane;
+            case "svg" -> splitPane4;
+            case "analysis" -> splitPane2;
+            default -> splitPane3;
+        };
+        ext.requestFocusInWindow();
     }
 
 }
