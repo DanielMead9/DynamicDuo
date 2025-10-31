@@ -32,7 +32,8 @@ public class GUI extends JFrame implements KeyListener {
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
 
     private SVG svg;
-    private boolean executed = false;
+    private boolean executed = false, dark = false;
+    private JLabel label = new JLabel();
     private File outfile = new File("temp_graph.svg");
     private double zoomFactor = 1.0;
 
@@ -267,7 +268,7 @@ public class GUI extends JFrame implements KeyListener {
         // Dark mode toggle
         displayBtn.addActionListener(e -> {
             // Toggle between light and dark mode
-            if (codeArea.getBackground().equals(new Color(40, 44, 52))) {
+            if (dark) {
                 // Switch to light mode
                 codeScroll.getGutter().setLineNumberColor(Color.BLACK);
                 codeScroll.getGutter().setBackground(Color.WHITE);
@@ -284,6 +285,8 @@ public class GUI extends JFrame implements KeyListener {
                 errorArea.setBackground(new Color(230, 230, 230));
                 errorArea.setForeground(Color.BLACK);
                 displayBtn.setText("Dark Mode");
+                dark = false;
+                labelDark();
 
             } else {
                 // Switch to dark mode
@@ -302,6 +305,8 @@ public class GUI extends JFrame implements KeyListener {
                 errorArea.setBackground(Color.DARK_GRAY);
                 errorArea.setForeground(Color.WHITE);
                 displayBtn.setText("Light Mode");
+                dark = true;
+                labelDark();
             }
 
         });
@@ -378,7 +383,6 @@ public class GUI extends JFrame implements KeyListener {
 
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
-                JLabel label;
 
                 if (executed) {
 
@@ -416,6 +420,7 @@ public class GUI extends JFrame implements KeyListener {
                 splitPane4.addKeyListener(this);
                 splitPane4.setFocusable(true);
                 splitPane4.requestFocusInWindow();
+                labelDark();
             }
             case "java" -> {
                 headingArea.setText("Java Code \n(This is the starter java code)");
@@ -580,6 +585,18 @@ public class GUI extends JFrame implements KeyListener {
 
     @Override
     public void keyTyped(KeyEvent e) {
+    }
+
+    public void labelDark() {
+        if (dark) {
+            label.setBackground(new Color(40, 44, 52));
+            label.setForeground(Color.WHITE);
+        } else {
+            label.setBackground(Color.LIGHT_GRAY);
+            label.setForeground(Color.BLACK);
+        }
+
+        label.setOpaque(true);
     }
 
 }

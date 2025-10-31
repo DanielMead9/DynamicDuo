@@ -47,10 +47,10 @@ public class SVG {
                         links[i + numNodes - 1] = nodesB[i].link(to(nodesB[i + 1]).with(Style.DOTTED, Arrow.NONE));
                         if (passer[i].equals(p1))
                                 links[i + numNodes * 2 - 1] = nodesA[i + 1]
-                                                .link(to(nodesB[i + 1]).with(Label.of(messages[i])));
+                                                .link(to(nodesB[i + 1]).with(Label.of(wrapLabel(messages[i]))));
                         else
                                 links[i + numNodes * 2 - 1] = nodesB[i + 1]
-                                                .link(to(nodesA[i + 1]).with(Label.of(messages[i])));
+                                                .link(to(nodesA[i + 1]).with(Label.of(wrapLabel(messages[i]))));
                 }
 
                 links[numNodes * 2 - 2] = nodesA[0].link(to(nodesB[0]).with("style", "invis"));
@@ -67,5 +67,20 @@ public class SVG {
 
         public Graph getGraph() {
                 return g;
+        }
+
+        // This code is based on code from ChatGPT
+        public static String wrapLabel(String text) {
+                StringBuilder sb = new StringBuilder();
+                int count = 0;
+                for (String word : text.split(" ")) {
+                        if (count + word.length() > 100) {
+                                sb.append("\\n"); // Graphviz newline
+                                count = 0;
+                        }
+                        sb.append(word).append(" ");
+                        count += word.length() + 1;
+                }
+                return sb.toString().trim();
         }
 }
