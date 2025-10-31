@@ -1,12 +1,8 @@
 package com.dynamicduo;
 
-import java.io.File;
-
-import guru.nidi.graphviz.engine.*;
 import guru.nidi.graphviz.model.*;
 import static guru.nidi.graphviz.model.Factory.*;
 import guru.nidi.graphviz.attribute.*;
-import guru.nidi.graphviz.attribute.Rank.RankDir;
 
 public class SVG {
         private Graph g;
@@ -32,25 +28,9 @@ public class SVG {
                 for (int i = 1; i < numNodes; i++) {
                         nodesA[i] = node("A" + (i + 1))
                                         .with(Style.INVIS, Label.of(""), Shape.POINT);
-                }
-
-                for (int i = 1; i < numNodes; i++) {
                         nodesB[i] = node("B" + (i + 1))
                                         .with(Style.INVIS, Label.of(""), Shape.POINT);
                 }
-
-                // Left column nodes
-                /*
-                 * Node A2 = node("A2").with(Style.INVIS, Label.of(""), Shape.POINT);
-                 * Node A3 = node("A3").with(Style.INVIS, Label.of(""), Shape.POINT);
-                 */
-
-                // Right column nodes
-
-                /*
-                 * Node B2 = node("B2").with(Style.INVIS, Label.of(""), Shape.POINT);
-                 * Node B3 = node("B3").with(Style.INVIS, Label.of(""), Shape.POINT);
-                 */
 
                 Graph leftColumn = graph("left")
                                 .with(nodesA)
@@ -64,39 +44,16 @@ public class SVG {
 
                 for (int i = 0; i < nodesA.length - 1; i++) {
                         links[i] = nodesA[i].link(to(nodesA[i + 1]).with(Style.DOTTED, Arrow.NONE));
-                }
-                for (int i = 0; i < nodesB.length - 1; i++) {
                         links[i + numNodes - 1] = nodesB[i].link(to(nodesB[i + 1]).with(Style.DOTTED, Arrow.NONE));
-                }
-
-                // LinkSource[] links2 = new LinkSource[numNodes];
-
-                // links2[0] = nodesA[0].link(to(nodesB[0]).with("style", "invis"));
-                links[numNodes * 2 - 2] = nodesA[0].link(to(nodesB[0]).with("style", "invis"));
-
-                for (int i = 1; i < nodesA.length; i++) {
-                        if (passer[i - 1].equals(p1))
-                                links[i + numNodes * 2 - 2] = nodesA[i]
-                                                .link(to(nodesB[i]).with(Label.of(messages[i - 1])));
+                        if (passer[i].equals(p1))
+                                links[i + numNodes * 2 - 1] = nodesA[i + 1]
+                                                .link(to(nodesB[i + 1]).with(Label.of(wrapLabel(messages[i]))));
                         else
-                                links[i + numNodes * 2 - 2] = nodesB[i]
-                                                .link(to(nodesA[i]).with(Label.of(messages[i - 1])));
-
+                                links[i + numNodes * 2 - 1] = nodesB[i + 1]
+                                                .link(to(nodesA[i + 1]).with(Label.of(wrapLabel(messages[i]))));
                 }
 
-                /*
-                 * for (int i = 1; i < nodesA.length; i++) {
-                 * links2[i] = nodesA[i].link(to(nodesB[i]).with(Label.of(messages[i - 1])));
-                 * System.out.println(i);
-                 * }
-                 */
-
-                /*
-                 * Link verticalLine = to(A2)
-                 * .with(Style.SOLID, Arrow.NONE)
-                 * .linkTo(A3)
-                 * .with(Style.SOLID, Arrow.NONE);
-                 */
+                links[numNodes * 2 - 2] = nodesA[0].link(to(nodesB[0]).with("style", "invis"));
 
                 g = graph("twoColumnBackAndForth").directed()
                                 .graphAttr().with(Attributes.attr("rankdir", "LR"), // use LR or TB for direction
@@ -106,18 +63,24 @@ public class SVG {
                                 .with(leftColumn, rightColumn)
                                 .with(links);
 
-                /*
-                 * A1.link(to(B1).with("style", "invis")),
-                 * B1.link(to(B2).with("style", "invis")),
-                 * A2.link(to(B2).with(Label.of("Message 1"))),
-                 * A2.link(to(A3).with("style", "invis")),
-                 * B3.link(to(A3).with(Label.of("Message 2")))
-                 */
-                // A1.link(to(verticalLine))
-
         }
 
         public Graph getGraph() {
                 return g;
+        }
+
+        // This code is based on code from ChatGPT
+        public static String wrapLabel(String text) {
+                StringBuilder sb = new StringBuilder();
+                int count = 0;
+                for (String word : text.split(" ")) {
+                        if (count + word.length() > 100) {
+                                sb.append("\\n"); // Graphviz newline
+                                count = 0;
+                        }
+                        sb.append(word).append(" ");
+                        count += word.length() + 1;
+                }
+                return sb.toString().trim();
         }
 }
