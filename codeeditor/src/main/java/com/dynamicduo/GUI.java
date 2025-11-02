@@ -24,9 +24,9 @@ public class GUI extends JFrame implements KeyListener {
     private RSyntaxTextArea codeArea;
     private RTextScrollPane codeScroll;
 
-    private String currentMode = "message"; // start on Message tab
+    private String currentMode = "message";
     private final HashMap<String, String> modeBuffers = new HashMap<>();
-    JSplitPane splitPane, splitPane2, splitPane3, splitPane4;
+    private JSplitPane splitPane, splitPane2, splitPane3, splitPane4;
 
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
@@ -61,6 +61,7 @@ public class GUI extends JFrame implements KeyListener {
         javaBtn = new JButton("Java Code");
         analysisBtn = new JButton("Analysis");
 
+        // set button size and fonts
         messageBtn.setPreferredSize(new Dimension(105, 35));
         messageBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         svgBtn.setPreferredSize(new Dimension(80, 35));
@@ -70,6 +71,7 @@ public class GUI extends JFrame implements KeyListener {
         analysisBtn.setPreferredSize(new Dimension(105, 35));
         analysisBtn.setFont(new Font("Verdana", Font.BOLD, 14));
 
+        // add to navigation panel
         navPanel.add(messageBtn);
         navPanel.add(svgBtn);
         navPanel.add(javaBtn);
@@ -81,11 +83,13 @@ public class GUI extends JFrame implements KeyListener {
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new FlowLayout(FlowLayout.RIGHT));
 
+        // Assigning buttons
         runBtn = new JButton("Run");
         saveBtn = new JButton("Save");
         uploadBtn = new JButton("Upload");
         displayBtn = new JButton("Dark Mode");
 
+        // set button size and fonts
         runBtn.setPreferredSize(new Dimension(80, 35));
         runBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         saveBtn.setPreferredSize(new Dimension(80, 35));
@@ -95,6 +99,7 @@ public class GUI extends JFrame implements KeyListener {
         displayBtn.setPreferredSize(new Dimension(125, 35));
         displayBtn.setFont(new Font("Verdana", Font.BOLD, 14));
 
+        // add to button panel
         buttonPanel.add(runBtn);
         buttonPanel.add(saveBtn);
         buttonPanel.add(uploadBtn);
@@ -169,6 +174,7 @@ public class GUI extends JFrame implements KeyListener {
                 default -> ".txt";
             };
 
+            // Saving the svg
             if (currentMode.equals("svg")) {
                 JFileChooser fileChooser = new JFileChooser();
                 fileChooser.setDialogTitle("Save Graph as SVG");
@@ -196,7 +202,8 @@ public class GUI extends JFrame implements KeyListener {
                         ex.printStackTrace();
                     }
                 }
-            } else {
+
+            } else { // Saving from any other file
                 JFileChooser fileChooser = new JFileChooser();
                 fileChooser.setSelectedFile(new File("untitled" + ext));
                 int option = fileChooser.showSaveDialog(this);
@@ -222,7 +229,7 @@ public class GUI extends JFrame implements KeyListener {
             refocus();
         });
 
-        // Upload button that allows for txt files
+        // Upload button that allows for txt or pdf files into message mode
         uploadBtn.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
             int option = fileChooser.showOpenDialog(this);
@@ -241,6 +248,7 @@ public class GUI extends JFrame implements KeyListener {
                     }
                 }
 
+                // reading in the pdf
                 if (file.getName().toLowerCase().endsWith(".pdf")) {
                     try (PDDocument document = PDDocument.load(file)) {
                         PDFTextStripper stripper = new PDFTextStripper();
@@ -250,7 +258,7 @@ public class GUI extends JFrame implements KeyListener {
                     } catch (IOException ex) {
                         JOptionPane.showMessageDialog(this, "Error loading file: " + ex.getMessage());
                     }
-                } else {
+                } else { // reading in txt
                     try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                         StringBuilder content = new StringBuilder();
                         String line;
@@ -318,6 +326,7 @@ public class GUI extends JFrame implements KeyListener {
 
         runBtn.addActionListener(e -> {
 
+            // example data 1
             /*
              * String[] messages = { "Message 1", "Message 2" };
              * String[] passer = { "Alice", "Bob" };
@@ -325,6 +334,8 @@ public class GUI extends JFrame implements KeyListener {
              * svg = new SVG(3, "Alice", "Bob", messages, passer);
              * 
              */
+
+            // example date 2
             String[] messages = { "Message 1", "Message 2", "Message 3", "Message 4", "Message 5", "Message 6" };
             String[] passer = { "Alice", "Bob", "Alice", "Alice", "Bob", "Alice" };
 
@@ -385,6 +396,7 @@ public class GUI extends JFrame implements KeyListener {
             analysisArea.setText(content);
 
         zoomFactor = 1.0;
+
         // Set heading text and activate buttons
         switch (newMode) {
             case "svg" -> {
@@ -395,7 +407,6 @@ public class GUI extends JFrame implements KeyListener {
                 runBtn.setEnabled(false);
 
                 if (executed) {
-
                     // Fix for invisible strokes in SVG
                     try {
                         String contentFile = new String(java.nio.file.Files.readAllBytes(outfile.toPath()));
@@ -414,7 +425,9 @@ public class GUI extends JFrame implements KeyListener {
                     label = new JLabel(icon);
 
                 } else {
-                    label = new JLabel("No SVG generated yet. Please run the message first.", SwingConstants.CENTER);
+                    // default if message hasn't been properly run
+                    label = new JLabel("No SVG generated yet. Please run the message first or check for errors.",
+                            SwingConstants.CENTER);
 
                 }
 
@@ -423,7 +436,7 @@ public class GUI extends JFrame implements KeyListener {
 
                 splitPane4 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
 
-                splitPane4.setResizeWeight(0.15);
+                splitPane4.setResizeWeight(0.1);
                 setCenterComponent(splitPane4);
 
                 zoom(splitPane4);
@@ -438,7 +451,7 @@ public class GUI extends JFrame implements KeyListener {
                 if (executed) {
                     codeArea.setText("Starter Java Code");
                 } else {
-                    codeArea.setText("No code available. Please run the message first.");
+                    codeArea.setText("No code available. Please run the message first or check for errors.");
                 }
                 codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
@@ -456,14 +469,14 @@ public class GUI extends JFrame implements KeyListener {
                 if (executed) {
                     analysisArea.setText("Analysis Results\n" + analysisStr);
                 } else {
-                    analysisArea.setText("No analysis available. Please run the message first.");
+                    analysisArea.setText("No analysis available. Please run the message first or check for errors.");
                 }
 
                 highlightActiveMode(analysisBtn);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, analysisScroll);
-                splitPane2.setResizeWeight(0.15);
+                splitPane2.setResizeWeight(0.10);
                 setCenterComponent(splitPane2);
 
                 zoom(splitPane2);
@@ -493,6 +506,7 @@ public class GUI extends JFrame implements KeyListener {
         }
     }
 
+    // sets up the center component of the frame
     private void setCenterComponent(Component comp) {
         Container contentPane = getContentPane();
         BorderLayout layout = (BorderLayout) contentPane.getLayout();
@@ -507,12 +521,14 @@ public class GUI extends JFrame implements KeyListener {
         repaint();
     }
 
+    // ensures that splitPane is set up properly
     private void setUpCodeScroll() {
         splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
 
         splitPane.setResizeWeight(0.25);
     }
 
+    // Sets up key pressed method to allow zoom
     @Override
     public void keyPressed(KeyEvent e) {
         JSplitPane ext = switch (currentMode) {
@@ -525,20 +541,18 @@ public class GUI extends JFrame implements KeyListener {
             zoomFactor += .1; // zoom in
             zoom(ext);
 
-            System.out.println("Zoom In");
         } else if (e.getKeyCode() == KeyEvent.VK_MINUS && e.isControlDown()) {
             zoomFactor -= .1; // zoom out
             zoom(ext);
 
-            System.out.println("Zoom Out");
         } else if (e.getKeyCode() == KeyEvent.VK_0 && e.isControlDown()) {
             zoomFactor = 1.0; // reset zoom
             zoom(ext);
 
-            System.out.println("Zoom Reset");
         }
     }
 
+    // zooming in or out based on what page the user is on
     public void zoom(JSplitPane ext) {
         Component[] arr = new Component[3];
         arr[0] = ext.getTopComponent();
@@ -595,6 +609,7 @@ public class GUI extends JFrame implements KeyListener {
     public void keyTyped(KeyEvent e) {
     }
 
+    // Setting the background of the label
     public void labelDark() {
         if (dark) {
             label.setBackground(new Color(40, 44, 52));
@@ -607,6 +622,7 @@ public class GUI extends JFrame implements KeyListener {
         label.setOpaque(true);
     }
 
+    // refocus the frame after a button is pressed
     public void refocus() {
         JSplitPane ext = switch (currentMode) {
             case "java" -> splitPane;
