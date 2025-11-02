@@ -26,7 +26,7 @@ public class GUI extends JFrame implements KeyListener {
 
     private String currentMode = "message"; // start on Message tab
     private final HashMap<String, String> modeBuffers = new HashMap<>();
-    private JSplitPane splitPane, splitPane2, splitPane3, splitPane4;
+    JSplitPane splitPane, splitPane2, splitPane3, splitPane4;
 
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
