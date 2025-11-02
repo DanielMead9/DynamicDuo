@@ -26,10 +26,13 @@ public class GUI extends JFrame implements KeyListener {
 
     private String currentMode = "message"; // start on Message tab
     private final HashMap<String, String> modeBuffers = new HashMap<>();
-    JSplitPane splitPane, splitPane2, splitPane3, splitPane4;
+    private JSplitPane splitPane, splitPane2, splitPane3, splitPane4;
 
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
+
+    private Analysis analysis;
+    private String analysisStr;
 
     private SVG svg;
     private boolean executed = false, dark = false;
@@ -328,13 +331,18 @@ public class GUI extends JFrame implements KeyListener {
             svg = new SVG(7, "Alice", "Bob", messages, passer);
 
             executed = true;
+            if (executed) {
+                try {
 
-            try {
+                    // for displaying svg
+                    Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toFile(outfile);
+                } catch (IOException f) {
+                    f.printStackTrace();
+                }
 
-                // for displaying svg
-                Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toFile(outfile);
-            } catch (IOException f) {
-                f.printStackTrace();
+                analysis = new Analysis(messages);
+                analysisStr = analysis.getAnalysis();
+
             }
 
             switchMode("svg");
@@ -446,7 +454,7 @@ public class GUI extends JFrame implements KeyListener {
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
                 if (executed) {
-                    analysisArea.setText("Analysis Results");
+                    analysisArea.setText("Analysis Results\n" + analysisStr);
                 } else {
                     analysisArea.setText("No analysis available. Please run the message first.");
                 }
