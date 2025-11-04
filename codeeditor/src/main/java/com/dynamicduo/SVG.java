@@ -9,9 +9,11 @@ public class SVG {
 
         public SVG(int numNodes, String p1, String p2, String[] messages, String[] passer) {
 
+                // Arrays to contain node groups
                 Node[] nodesA = new Node[numNodes];
                 Node[] nodesB = new Node[numNodes];
 
+                // Set up base node one
                 Node A1 = node(p1)
                                 .with(Attributes.attr("width", "1"))
                                 .with(Attributes.attr("height", "1"))
@@ -19,12 +21,14 @@ public class SVG {
                                 .with(Attributes.attr("fontsize", "20"));
                 nodesA[0] = A1;
 
+                // Set up base node two
                 Node B1 = node(p2).with(Attributes.attr("width", "1"))
                                 .with(Attributes.attr("height", "1"))
                                 .with(Shape.UNDERLINE)
                                 .with(Attributes.attr("fontsize", "20"));
                 nodesB[0] = B1;
 
+                // set up all other nodes
                 for (int i = 1; i < numNodes; i++) {
                         nodesA[i] = node("A" + (i + 1))
                                         .with(Style.INVIS, Label.of(""), Shape.POINT);
@@ -32,19 +36,28 @@ public class SVG {
                                         .with(Style.INVIS, Label.of(""), Shape.POINT);
                 }
 
+                // Create the left column of nodes
                 Graph leftColumn = graph("left")
                                 .with(nodesA)
-                                .graphAttr().with("rank", "same"); // keep same column
+                                .graphAttr().with("rank", "same");
 
+                // Create the right column of nodes
                 Graph rightColumn = graph("right")
                                 .with(nodesB)
                                 .graphAttr().with("rank", "same");
 
+                // Array to store all link connections
                 LinkSource[] links = new LinkSource[numNodes * 3 - 2];
 
+                // Create all links other than Header link
                 for (int i = 0; i < nodesA.length - 1; i++) {
+                        // Create left dotted line
                         links[i] = nodesA[i].link(to(nodesA[i + 1]).with(Style.DOTTED, Arrow.NONE));
+
+                        // Create right dotted line
                         links[i + numNodes - 1] = nodesB[i].link(to(nodesB[i + 1]).with(Style.DOTTED, Arrow.NONE));
+
+                        // Create links across graph dependent on which principle is passing the message
                         if (passer[i].equals(p1))
                                 links[i + numNodes * 2 - 1] = nodesA[i + 1]
                                                 .link(to(nodesB[i + 1]).with(Label.of(wrapLabel(messages[i]))));
@@ -53,15 +66,18 @@ public class SVG {
                                                 .link(to(nodesA[i + 1]).with(Label.of(wrapLabel(messages[i]))));
                 }
 
+                // Create invisible header link to ensure that the columns stay where they
+                // should
                 links[numNodes * 2 - 2] = nodesA[0].link(to(nodesB[0]).with("style", "invis"));
 
+                // Create Directed graph
                 g = graph("twoColumnBackAndForth").directed()
-                                .graphAttr().with(Attributes.attr("rankdir", "LR"), // use LR or TB for direction
+                                .graphAttr().with(Attributes.attr("rankdir", "LR"), // makes the graph go left to right
                                                 Attributes.attr("nodesep", ".5"), // spacing between nodes in same rank
                                                 Attributes.attr("ranksep", "1.0") // spacing between ranks
                                 )
-                                .with(leftColumn, rightColumn)
-                                .with(links);
+                                .with(leftColumn, rightColumn) // adds the node columns with ranks
+                                .with(links); // adds all of the links
 
         }
 
@@ -70,12 +86,13 @@ public class SVG {
         }
 
         // This code is based on code from ChatGPT
+        // This method is used to make the text stack if it exceeds a certain length
         public static String wrapLabel(String text) {
                 StringBuilder sb = new StringBuilder();
                 int count = 0;
                 for (String word : text.split(" ")) {
-                        if (count + word.length() > 100) {
-                                sb.append("\\n"); // Graphviz newline
+                        if (count + word.length() > 75) {
+                                sb.append("\\n");
                                 count = 0;
                         }
                         sb.append(word).append(" ");
