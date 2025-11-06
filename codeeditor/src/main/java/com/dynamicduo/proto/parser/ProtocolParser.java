@@ -35,11 +35,11 @@ public class ProtocolParser {
         RoleDeclNode roles = rolesDecl();
         ProtocolNode proto = new ProtocolNode(roles);
 
-        while (!check(TokenType.EOF)) {
+        while (peek().getType() != TokenType.EOF) {
+
             MessageSendNode msg = message();
             proto.addMessage(msg);
         }
-        consume(TokenType.EOF, "Expected end of input.");
         return proto;
     }
 
