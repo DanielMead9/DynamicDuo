@@ -1,14 +1,17 @@
 package com.dynamicduo;
 
 import javax.swing.*;
+
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.*;
+import java.net.URI;
 import java.util.HashMap;
 import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
 
+import com.kitfox.svg.SVGUniverse;
 import com.kitfox.svg.app.beans.SVGIcon;
 
 import guru.nidi.graphviz.engine.*;
@@ -32,13 +35,14 @@ public class GUI extends JFrame implements KeyListener {
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
 
     private Analysis analysis;
-    private String analysisStr;
+    private String analysisStr, svgStr;
 
     private SVG svg;
     private boolean executed = false, dark = false;
     private JLabel label = new JLabel();
-    private File outfile = new File("temp_graph.svg");
     private double zoomFactor = 1.0;
+
+    private int count = 0;
 
     public GUI() {
         setTitle("Security Message App");
@@ -325,33 +329,33 @@ public class GUI extends JFrame implements KeyListener {
         });
 
         runBtn.addActionListener(e -> {
+            String[] messageArr;
 
-            // example data 1
-            /*
-             * String[] messages = { "Message 1", "Message 2" };
-             * String[] passer = { "Alice", "Bob" };
-             * 
-             * svg = new SVG(3, "Alice", "Bob", messages, passer);
-             * 
-             */
+            if (count == 0) {
+                String[] messages = { "Message 1", "Message 2" };
+                String[] passer = { "Alice", "Bob" };
 
-            // example date 2
-            String[] messages = { "Message 1", "Message 2", "Message 3", "Message 4", "Message 5", "Message 6" };
-            String[] passer = { "Alice", "Bob", "Alice", "Alice", "Bob", "Alice" };
+                svg = new SVG(3, "Alice", "Bob", messages, passer);
 
-            svg = new SVG(7, "Alice", "Bob", messages, passer);
+                messageArr = messages;
+
+            } else {
+                String[] messages = { "Message 1", "Message 2", "Message 3", "Message 4", "Message 5", "Message 6" };
+                String[] passer = { "Alice", "Bob", "Alice", "Alice", "Bob", "Alice" };
+
+                svg = new SVG(7, "Alice", "Bob", messages, passer);
+
+                messageArr = messages;
+            }
 
             executed = true;
             if (executed) {
-                try {
 
-                    // for displaying svg
-                    Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toFile(outfile);
-                } catch (IOException f) {
-                    f.printStackTrace();
-                }
+                // Re-render the SVG file
+                svgStr = Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toString();
+                svgStr = svgStr.replace("stroke=\"transparent\"", "stroke=\"none\"");
 
-                analysis = new Analysis(messages);
+                analysis = new Analysis(messageArr);
                 analysisStr = analysis.getAnalysis();
 
             }
@@ -359,6 +363,12 @@ public class GUI extends JFrame implements KeyListener {
             switchMode("svg");
 
             JOptionPane.showMessageDialog(this, "Run Button pressed");
+
+            if (count == 0) {
+                count++;
+            } else {
+                count = 0;
+            }
 
         });
 
@@ -407,43 +417,47 @@ public class GUI extends JFrame implements KeyListener {
                 runBtn.setEnabled(false);
 
                 if (executed) {
-                    // Fix for invisible strokes in SVG
-                    try {
-                        String contentFile = new String(java.nio.file.Files.readAllBytes(outfile.toPath()));
-                        contentFile = contentFile.replace("stroke=\"transparent\"", "stroke=\"none\"");
-                        java.nio.file.Files.write(outfile.toPath(), contentFile.getBytes());
-                    } catch (IOException ioex) {
-                        ioex.printStackTrace();
-                    }
 
-                    // for displaying svg
+                    SVGUniverse universe = new SVGUniverse();
+                    URI svgUri = universe.loadSVG(new StringReader(svgStr), "graph");
+
                     SVGIcon icon = new SVGIcon();
-                    icon.setSvgURI(outfile.toURI());
+                    icon.setSvgUniverse(universe);
+                    icon.setSvgURI(svgUri);
+
                     icon.setAntiAlias(true);
                     icon.setAutosize(SVGIcon.AUTOSIZE_BESTFIT);
-                    icon.setPreferredSize(new Dimension(600, 400)); // optional default size
+
                     label = new JLabel(icon);
+                    label.revalidate();
+                    label.repaint();
 
                 } else {
                     // default if message hasn't been properly run
-                    label = new JLabel("No SVG generated yet. Please run the message first or check for errors.",
-                            SwingConstants.CENTER);
+                    label.setText("No SVG generated yet. Please run the message first or check for errors.");
 
                 }
 
+                label.setHorizontalAlignment(JLabel.CENTER);
+
                 svgScroll = new JScrollPane(label);
                 svgScroll.getVerticalScrollBar().setUnitIncrement(15);
+                svgScroll.revalidate();
+                svgScroll.repaint();
 
                 splitPane4 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
-
                 splitPane4.setResizeWeight(0.1);
                 setCenterComponent(splitPane4);
+
+                splitPane4.revalidate();
+                splitPane4.repaint();
 
                 zoom(splitPane4);
                 splitPane4.addKeyListener(this);
                 splitPane4.setFocusable(true);
                 splitPane4.requestFocusInWindow();
                 labelDark();
+
             }
             case "java" -> {
                 headingArea.setText("Java Code \n(This is the starter java code)");
@@ -576,9 +590,15 @@ public class GUI extends JFrame implements KeyListener {
 
                 if (view instanceof JTextArea textArea) {
                     textArea.setFont(textArea.getFont().deriveFont((float) (16f * zoomFactor)));
-                } else if (view instanceof JLabel label && currentMode.equals("svg") && executed) {
+                } else if (view instanceof JLabel label && currentMode.equals("svg") &&
+                        executed) {
+                    SVGUniverse universe = new SVGUniverse();
+                    URI svgUri = universe.loadSVG(new StringReader(svgStr), "graph");
+
                     SVGIcon icon = new SVGIcon();
-                    icon.setSvgURI(outfile.toURI());
+                    icon.setSvgUniverse(universe);
+                    icon.setSvgURI(svgUri);
+
                     icon.setAntiAlias(true);
                     icon.setAutosize(SVGIcon.AUTOSIZE_BESTFIT);
 
