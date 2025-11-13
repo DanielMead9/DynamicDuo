@@ -1,23 +1,23 @@
 package com.dynamicduo.proto;
 
-import com.dynamicduo.proto.lexer.*;
-import com.dynamicduo.proto.parser.*;
-import com.dynamicduo.proto.ast.*;
-
-// ADD:
-import com.dynamicduo.proto.render.DotBuilder;
-import com.dynamicduo.proto.render.SvgRenderer;
+import com.dynamicduo.proto.lexer.Lexer;
+import com.dynamicduo.proto.parser.ProtocolParser;
+import com.dynamicduo.proto.parser.ParseException;
+import com.dynamicduo.proto.ast.ProtocolNode;
+import com.dynamicduo.proto.render.SequenceDiagramFromAst;
 
 public class Demo {
     public static void main(String[] args) {
+        // Simple two-party protocol that will render like your screenshot
         String input = """
-            roles: Alice, Bob, Server
+            roles: Alice, Bob
 
-            Alice -> Server : req = Enc(K_AS, N_A)
-            Server -> Bob   : ticket = Enc(K_BS, K_AB)
-            Bob -> Server   : confirm = Enc(K_BS, N_B)
-            Alice -> Bob    : data1 = Enc(K_AB, M_1)
-            Bob   -> Alice  : data2 = Enc(K_AB, M_2)
+            Alice -> Bob   : Message1 = Enc(K_AB, N_A)
+            Bob   -> Alice : Message2 = Enc(K_AB, N_B)
+            Alice -> Bob   : Message3 = Enc(K_AB, M_1)
+            Alice -> Bob   : Message4 = Enc(K_AB, M_2)
+            Bob   -> Alice : Message5 = Enc(K_AB, M_3)
+            Alice -> Bob   : Message6 = Enc(K_AB, M_4)
         """;
 
         Lexer lexer = new Lexer(input);
@@ -29,16 +29,14 @@ public class Demo {
             System.out.println("=== AST ===");
             System.out.println(tree.pretty());
 
-            // Build DOT and render SVG
-            var dotFile = DotBuilder.buildAndWrite(tree, "protocol.dot"); // AST → .dot
-            var svgFile = java.nio.file.Path.of("protocol.svg");
-            SvgRenderer.render(dotFile, svgFile);                         // .dot → .svg
+            // Use our adapter to create a nice sequence diagram SVG
+            SequenceDiagramFromAst.renderTwoParty(tree, "pretty_protocol.svg");
 
         } catch (ParseException e) {
             System.err.println("Parse error: " + e.getMessage());
             System.err.println("Line: " + e.getLine());
         } catch (Exception e) {
-            System.err.println("Graph generation failed: " + e.getMessage());
+            System.err.println("Render failed: " + e.getMessage());
         }
     }
 }

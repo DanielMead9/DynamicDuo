@@ -1,3 +1,4 @@
+com/dynamicduo/proto/render/SequenceDiagramFromAst.class
 com/dynamicduo/proto/ast/IdentifierNode.class
 com/dynamicduo/proto/Demo.class
 com/dynamicduo/proto/lexer/TokenType.class

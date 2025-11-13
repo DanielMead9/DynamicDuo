@@ -14,5 +14,6 @@
 /Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/render/DotBuilder.java
 /Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/ast/RoleDeclNode.java
 /Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/parser/ProtocolParser.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/render/SequenceDiagramFromAst.java
 /Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/GUI.java
 /Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/SVG.java
