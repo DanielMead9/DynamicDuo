@@ -1,0 +1,43 @@
+digraph Protocol {
+  rankdir=TB;
+  splines=polyline;
+  node [fontsize=12];
+  graph [nodesep=0.8, ranksep=0.8];
+
+  hdr_Alice [label="Alice", shape=box, style=rounded];
+  hdr_Bob [label="Bob", shape=box, style=rounded];
+  hdr_Server [label="Server", shape=box, style=rounded];
+
+  pt_Alice_0 [label="", shape=point, width=0.02, height=0.02];
+  pt_Bob_0 [label="", shape=point, width=0.02, height=0.02];
+  pt_Server_0 [label="", shape=point, width=0.02, height=0.02];
+  pt_Alice_1 [label="", shape=point, width=0.02, height=0.02];
+  pt_Bob_1 [label="", shape=point, width=0.02, height=0.02];
+  pt_Server_1 [label="", shape=point, width=0.02, height=0.02];
+  pt_Alice_2 [label="", shape=point, width=0.02, height=0.02];
+  pt_Bob_2 [label="", shape=point, width=0.02, height=0.02];
+  pt_Server_2 [label="", shape=point, width=0.02, height=0.02];
+  pt_Alice_3 [label="", shape=point, width=0.02, height=0.02];
+  pt_Bob_3 [label="", shape=point, width=0.02, height=0.02];
+  pt_Server_3 [label="", shape=point, width=0.02, height=0.02];
+  pt_Alice_4 [label="", shape=point, width=0.02, height=0.02];
+  pt_Bob_4 [label="", shape=point, width=0.02, height=0.02];
+  pt_Server_4 [label="", shape=point, width=0.02, height=0.02];
+
+  { rank=same; hdr_Alice hdr_Bob hdr_Server }
+  { rank=same; pt_Alice_0 pt_Bob_0 pt_Server_0 }
+  { rank=same; pt_Alice_1 pt_Bob_1 pt_Server_1 }
+  { rank=same; pt_Alice_2 pt_Bob_2 pt_Server_2 }
+  { rank=same; pt_Alice_3 pt_Bob_3 pt_Server_3 }
+  { rank=same; pt_Alice_4 pt_Bob_4 pt_Server_4 }
+
+  hdr_Alice -> pt_Alice_0 [style=invis];
+  hdr_Bob -> pt_Bob_0 [style=invis];
+  hdr_Server -> pt_Server_0 [style=invis];
+
+  pt_Alice_0 -> pt_Server_0 [label="req = Enc(K_AS, N_A)", constraint=false];
+  pt_Server_1 -> pt_Bob_1 [label="ticket = Enc(K_BS, K_AB)", constraint=false];
+  pt_Bob_2 -> pt_Server_2 [label="confirm = Enc(K_BS, N_B)", constraint=false];
+  pt_Alice_3 -> pt_Bob_3 [label="data1 = Enc(K_AB, M_1)", constraint=false];
+  pt_Bob_4 -> pt_Alice_4 [label="data2 = Enc(K_AB, M_2)", constraint=false];
+}

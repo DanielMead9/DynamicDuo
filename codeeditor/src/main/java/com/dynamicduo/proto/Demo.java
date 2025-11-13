@@ -4,37 +4,41 @@ import com.dynamicduo.proto.lexer.*;
 import com.dynamicduo.proto.parser.*;
 import com.dynamicduo.proto.ast.*;
 
-/**
- * Tiny CLI to prove the pipeline works for your report-out.
- * Run from Maven/VSCode:
- *   - VSCode: Run > Run Java on this file
- *   - Maven:  mvn -q -Dexec.mainClass=com.dynamicduo.proto.Demo exec:java
- */
+// ADD:
+import com.dynamicduo.proto.render.DotBuilder;
+import com.dynamicduo.proto.render.SvgRenderer;
+
 public class Demo {
     public static void main(String[] args) {
-        // Change this sample as you wish for the demo
         String input = """
-            roles: Alice, Bob
-            Alice -> Bob : c = Enc(k, m)
-            Alice -> Bob : Enc(k, m)
+            roles: Alice, Bob, Server
+
+            Alice -> Server : req = Enc(K_AS, N_A)
+            Server -> Bob   : ticket = Enc(K_BS, K_AB)
+            Bob -> Server   : confirm = Enc(K_BS, N_B)
+            Alice -> Bob    : data1 = Enc(K_AB, M_1)
+            Bob   -> Alice  : data2 = Enc(K_AB, M_2)
         """;
 
-        // 1) Lex
         Lexer lexer = new Lexer(input);
-
-        // 2) Parse
         ProtocolParser parser = new ProtocolParser(lexer);
 
         try {
             ProtocolNode tree = parser.parse();
 
-            // 3) Pretty-print AST tree for your slides
             System.out.println("=== AST ===");
             System.out.println(tree.pretty());
+
+            // Build DOT and render SVG
+            var dotFile = DotBuilder.buildAndWrite(tree, "protocol.dot"); // AST → .dot
+            var svgFile = java.nio.file.Path.of("protocol.svg");
+            SvgRenderer.render(dotFile, svgFile);                         // .dot → .svg
 
         } catch (ParseException e) {
             System.err.println("Parse error: " + e.getMessage());
             System.err.println("Line: " + e.getLine());
+        } catch (Exception e) {
+            System.err.println("Graph generation failed: " + e.getMessage());
         }
     }
 }
