@@ -1,6 +1,5 @@
 package com.dynamicduo.proto.render;
 
-import com.dynamicduo.SVG;
 import com.dynamicduo.proto.ast.*;
 
 import guru.nidi.graphviz.engine.Format;
@@ -13,21 +12,23 @@ import java.util.stream.Collectors;
 /**
  * SequenceDiagramFromAst
  *
- * Bridges our Protocol AST into the existing SVG.java two-party sequence diagram
+ * Bridges our Protocol AST into the existing SVG.java two-party sequence
+ * diagram
  * 
  *
  * Assumptions:
- *   - The protocol declares exactly TWO roles.
- *   - Each message is represented as a MessageSendNode with
- *     sender, receiver, and a body expression.
+ * - The protocol declares exactly TWO roles.
+ * - Each message is represented as a MessageSendNode with
+ * sender, receiver, and a body expression.
  *
  * Output:
- *   - An SVG file with Alice/Bob style vertical lifelines and
- *     horizontal arrows for each message.
+ * - An SVG file with Alice/Bob style vertical lifelines and
+ * horizontal arrows for each message.
  */
 public final class SequenceDiagramFromAst {
 
-    private SequenceDiagramFromAst() {}
+    private SequenceDiagramFromAst() {
+    }
 
     /**
      * Render a two-party sequence diagram using your partner's SVG.java.
@@ -51,15 +52,15 @@ public final class SequenceDiagramFromAst {
 
         // 2) Messages define the rows
         List<MessageSendNode> msgs = proto.getMessages();
-        int numNodes = msgs.size() + 1;        // lifeline points = messages + 1
+        int numNodes = msgs.size() + 1; // lifeline points = messages + 1
 
         String[] messages = new String[msgs.size()];
-        String[] passer   = new String[msgs.size()];
+        String[] passer = new String[msgs.size()];
 
         for (int i = 0; i < msgs.size(); i++) {
             MessageSendNode m = msgs.get(i);
-            messages[i] = labelFor(m.getBody());      // text on the arrow
-            passer[i]   = m.getSender().getName();    // who sends this message
+            messages[i] = labelFor(m.getBody()); // text on the arrow
+            passer[i] = m.getSender().getName(); // who sends this message
         }
 
         // 3) Build the graph using your partner's SVG helper
@@ -83,6 +84,6 @@ public final class SequenceDiagramFromAst {
         if (body instanceof EncryptExprNode e) {
             return "Enc(" + e.getKey().getName() + ", " + e.getMessage().getName() + ")";
         }
-        return body.label();  // generic fallback
+        return body.label(); // generic fallback
     }
 }

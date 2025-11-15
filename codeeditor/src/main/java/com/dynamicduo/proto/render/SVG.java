@@ -1,4 +1,4 @@
-package com.dynamicduo;
+package com.dynamicduo.proto.render;
 
 import guru.nidi.graphviz.model.*;
 import static guru.nidi.graphviz.model.Factory.*;
