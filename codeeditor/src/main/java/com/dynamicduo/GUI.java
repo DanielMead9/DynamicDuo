@@ -37,7 +37,7 @@ public class GUI extends JFrame implements KeyListener {
     private Analysis analysis;
     private String analysisStr, svgStr;
 
-    private SVG svg;
+    // private SVG svg;
     private boolean executed = false, dark = false;
     private JLabel label = new JLabel();
     private double zoomFactor = 1.0;
@@ -194,17 +194,19 @@ public class GUI extends JFrame implements KeyListener {
                         file = new File(file.getParentFile(), file.getName() + ".svg");
                     }
 
-                    try {
-                        // Render and save SVG file
-                        Graphviz.fromGraph(svg.getGraph())
-                                .render(Format.SVG)
-                                .toFile(file);
-
-                        JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
-                    } catch (IOException ex) {
-                        JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
-                        ex.printStackTrace();
-                    }
+                    /*
+                     * try {
+                     * // Render and save SVG file
+                     * Graphviz.fromGraph(svg.getGraph())
+                     * .render(Format.SVG)
+                     * .toFile(file);
+                     * 
+                     * JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
+                     * } catch (IOException ex) {
+                     * JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
+                     * ex.printStackTrace();
+                     * }
+                     */
                 }
 
             } else { // Saving from any other file
@@ -335,7 +337,7 @@ public class GUI extends JFrame implements KeyListener {
                 String[] messages = { "Message 1", "Message 2" };
                 String[] passer = { "Alice", "Bob" };
 
-                svg = new SVG(3, "Alice", "Bob", messages, passer);
+                // svg = new SVG(3, "Alice", "Bob", messages, passer);
 
                 messageArr = messages;
 
@@ -343,8 +345,7 @@ public class GUI extends JFrame implements KeyListener {
                 String[] messages = { "Message 1", "Message 2", "Message 3", "Message 4", "Message 5", "Message 6" };
                 String[] passer = { "Alice", "Bob", "Alice", "Alice", "Bob", "Alice" };
 
-                svg = new SVG(7, "Alice", "Bob", messages, passer);
-
+                // svg = new SVG(7, "Alice", "Bob", messages, passer);
                 messageArr = messages;
             }
 
@@ -352,8 +353,8 @@ public class GUI extends JFrame implements KeyListener {
             if (executed) {
 
                 // Re-render the SVG file
-                svgStr = Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toString();
-                svgStr = svgStr.replace("stroke=\"transparent\"", "stroke=\"none\"");
+                // svgStr = Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toString();
+                // svgStr = svgStr.replace("stroke=\"transparent\"", "stroke=\"none\"");
 
                 analysis = new Analysis(messageArr);
                 analysisStr = analysis.getAnalysis();
@@ -416,7 +417,7 @@ public class GUI extends JFrame implements KeyListener {
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
 
-                if (executed) {
+                if (executed && svgStr != null) {
 
                     SVGUniverse universe = new SVGUniverse();
                     URI svgUri = universe.loadSVG(new StringReader(svgStr), "graph");
@@ -463,7 +464,18 @@ public class GUI extends JFrame implements KeyListener {
                 headingArea.setText("Java Code \n(This is the starter java code)");
                 highlightActiveMode(javaBtn);
                 if (executed) {
-                    codeArea.setText("Starter Java Code");
+                    File file = new File("codeeditor\\src\\main\\java\\com\\dynamicduo\\StarterCode.txt");
+                    try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            codeArea.append(line + "\n");
+                        }
+                    } catch (IOException fstart) {
+                        fstart.printStackTrace();
+                        JOptionPane.showMessageDialog(codeArea, "Error reading file: " + fstart.getMessage(),
+                                "File Error",
+                                JOptionPane.ERROR_MESSAGE);
+                    }
                 } else {
                     codeArea.setText("No code available. Please run the message first or check for errors.");
                 }
@@ -591,7 +603,7 @@ public class GUI extends JFrame implements KeyListener {
                 if (view instanceof JTextArea textArea) {
                     textArea.setFont(textArea.getFont().deriveFont((float) (16f * zoomFactor)));
                 } else if (view instanceof JLabel label && currentMode.equals("svg") &&
-                        executed) {
+                        executed && svgStr != null) {
                     SVGUniverse universe = new SVGUniverse();
                     URI svgUri = universe.loadSVG(new StringReader(svgStr), "graph");
 
