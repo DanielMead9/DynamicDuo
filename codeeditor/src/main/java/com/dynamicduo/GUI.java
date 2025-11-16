@@ -1,14 +1,17 @@
 package com.dynamicduo;
 
 import javax.swing.*;
+
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.*;
+import java.net.URI;
 import java.util.HashMap;
 import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
 
+import com.kitfox.svg.SVGUniverse;
 import com.kitfox.svg.app.beans.SVGIcon;
 
 import guru.nidi.graphviz.engine.*;
@@ -24,17 +27,22 @@ public class GUI extends JFrame implements KeyListener {
     private RSyntaxTextArea codeArea;
     private RTextScrollPane codeScroll;
 
-    private String currentMode = "message"; // start on Message tab
+    private String currentMode = "message";
     private final HashMap<String, String> modeBuffers = new HashMap<>();
-    JSplitPane splitPane, splitPane2, splitPane3, splitPane4;
+    private JSplitPane splitPane, splitPane2, splitPane3, splitPane4;
 
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
 
+    private Analysis analysis;
+    private String analysisStr, svgStr;
+
     private SVG svg;
-    private boolean executed = false;
-    private File outfile = new File("temp_graph.svg");
+    private boolean executed = false, dark = false;
+    private JLabel label = new JLabel();
     private double zoomFactor = 1.0;
+
+    private int count = 0;
 
     public GUI() {
         setTitle("Security Message App");
@@ -57,6 +65,7 @@ public class GUI extends JFrame implements KeyListener {
         javaBtn = new JButton("Java Code");
         analysisBtn = new JButton("Analysis");
 
+        // set button size and fonts
         messageBtn.setPreferredSize(new Dimension(105, 35));
         messageBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         svgBtn.setPreferredSize(new Dimension(80, 35));
@@ -66,6 +75,7 @@ public class GUI extends JFrame implements KeyListener {
         analysisBtn.setPreferredSize(new Dimension(105, 35));
         analysisBtn.setFont(new Font("Verdana", Font.BOLD, 14));
 
+        // add to navigation panel
         navPanel.add(messageBtn);
         navPanel.add(svgBtn);
         navPanel.add(javaBtn);
@@ -77,20 +87,23 @@ public class GUI extends JFrame implements KeyListener {
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new FlowLayout(FlowLayout.RIGHT));
 
+        // Assigning buttons
         runBtn = new JButton("Run");
         saveBtn = new JButton("Save");
         uploadBtn = new JButton("Upload");
         displayBtn = new JButton("Dark Mode");
 
+        // set button size and fonts
         runBtn.setPreferredSize(new Dimension(80, 35));
         runBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         saveBtn.setPreferredSize(new Dimension(80, 35));
         saveBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         uploadBtn.setPreferredSize(new Dimension(100, 35));
         uploadBtn.setFont(new Font("Verdana", Font.BOLD, 14));
-        displayBtn.setPreferredSize(new Dimension(120, 35));
+        displayBtn.setPreferredSize(new Dimension(125, 35));
         displayBtn.setFont(new Font("Verdana", Font.BOLD, 14));
 
+        // add to button panel
         buttonPanel.add(runBtn);
         buttonPanel.add(saveBtn);
         buttonPanel.add(uploadBtn);
@@ -165,6 +178,7 @@ public class GUI extends JFrame implements KeyListener {
                 default -> ".txt";
             };
 
+            // Saving the svg
             if (currentMode.equals("svg")) {
                 JFileChooser fileChooser = new JFileChooser();
                 fileChooser.setDialogTitle("Save Graph as SVG");
@@ -192,7 +206,8 @@ public class GUI extends JFrame implements KeyListener {
                         ex.printStackTrace();
                     }
                 }
-            } else {
+
+            } else { // Saving from any other file
                 JFileChooser fileChooser = new JFileChooser();
                 fileChooser.setSelectedFile(new File("untitled" + ext));
                 int option = fileChooser.showSaveDialog(this);
@@ -215,10 +230,10 @@ public class GUI extends JFrame implements KeyListener {
                     }
                 }
             }
-
+            refocus();
         });
 
-        // Upload button that allows for txt files
+        // Upload button that allows for txt or pdf files into message mode
         uploadBtn.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
             int option = fileChooser.showOpenDialog(this);
@@ -237,6 +252,7 @@ public class GUI extends JFrame implements KeyListener {
                     }
                 }
 
+                // reading in the pdf
                 if (file.getName().toLowerCase().endsWith(".pdf")) {
                     try (PDDocument document = PDDocument.load(file)) {
                         PDFTextStripper stripper = new PDFTextStripper();
@@ -246,7 +262,7 @@ public class GUI extends JFrame implements KeyListener {
                     } catch (IOException ex) {
                         JOptionPane.showMessageDialog(this, "Error loading file: " + ex.getMessage());
                     }
-                } else {
+                } else { // reading in txt
                     try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                         StringBuilder content = new StringBuilder();
                         String line;
@@ -262,12 +278,13 @@ public class GUI extends JFrame implements KeyListener {
                 }
 
             }
+            refocus();
         });
 
         // Dark mode toggle
         displayBtn.addActionListener(e -> {
             // Toggle between light and dark mode
-            if (codeArea.getBackground().equals(new Color(40, 44, 52))) {
+            if (dark) {
                 // Switch to light mode
                 codeScroll.getGutter().setLineNumberColor(Color.BLACK);
                 codeScroll.getGutter().setBackground(Color.WHITE);
@@ -284,6 +301,8 @@ public class GUI extends JFrame implements KeyListener {
                 errorArea.setBackground(new Color(230, 230, 230));
                 errorArea.setForeground(Color.BLACK);
                 displayBtn.setText("Dark Mode");
+                dark = false;
+                labelDark();
 
             } else {
                 // Switch to dark mode
@@ -302,37 +321,54 @@ public class GUI extends JFrame implements KeyListener {
                 errorArea.setBackground(Color.DARK_GRAY);
                 errorArea.setForeground(Color.WHITE);
                 displayBtn.setText("Light Mode");
+                dark = true;
+                labelDark();
             }
+            refocus();
 
         });
 
         runBtn.addActionListener(e -> {
+            String[] messageArr;
 
-            /*
-             * String[] messages = { "Message 1", "Message 2" };
-             * String[] passer = { "Alice", "Bob" };
-             * 
-             * svg = new SVG(3, "Alice", "Bob", messages, passer);
-             * 
-             */
-            String[] messages = { "Message 1", "Message 2", "Message 3", "Message 4", "Message 5", "Message 6" };
-            String[] passer = { "Alice", "Bob", "Alice", "Alice", "Bob", "Alice" };
+            if (count == 0) {
+                String[] messages = { "Message 1", "Message 2" };
+                String[] passer = { "Alice", "Bob" };
 
-            svg = new SVG(7, "Alice", "Bob", messages, passer);
+                svg = new SVG(3, "Alice", "Bob", messages, passer);
+
+                messageArr = messages;
+
+            } else {
+                String[] messages = { "Message 1", "Message 2", "Message 3", "Message 4", "Message 5", "Message 6" };
+                String[] passer = { "Alice", "Bob", "Alice", "Alice", "Bob", "Alice" };
+
+                svg = new SVG(7, "Alice", "Bob", messages, passer);
+
+                messageArr = messages;
+            }
 
             executed = true;
+            if (executed) {
 
-            try {
+                // Re-render the SVG file
+                svgStr = Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toString();
+                svgStr = svgStr.replace("stroke=\"transparent\"", "stroke=\"none\"");
 
-                // for displaying svg
-                Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toFile(outfile);
-            } catch (IOException f) {
-                f.printStackTrace();
+                analysis = new Analysis(messageArr);
+                analysisStr = analysis.getAnalysis();
+
             }
 
             switchMode("svg");
 
             JOptionPane.showMessageDialog(this, "Run Button pressed");
+
+            if (count == 0) {
+                count++;
+            } else {
+                count = 0;
+            }
 
         });
 
@@ -370,6 +406,7 @@ public class GUI extends JFrame implements KeyListener {
             analysisArea.setText(content);
 
         zoomFactor = 1.0;
+
         // Set heading text and activate buttons
         switch (newMode) {
             case "svg" -> {
@@ -378,44 +415,49 @@ public class GUI extends JFrame implements KeyListener {
 
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
-                JLabel label;
 
                 if (executed) {
 
-                    // Fix for invisible strokes in SVG
-                    try {
-                        String contentFile = new String(java.nio.file.Files.readAllBytes(outfile.toPath()));
-                        contentFile = contentFile.replace("stroke=\"transparent\"", "stroke=\"none\"");
-                        java.nio.file.Files.write(outfile.toPath(), contentFile.getBytes());
-                    } catch (IOException ioex) {
-                        ioex.printStackTrace();
-                    }
+                    SVGUniverse universe = new SVGUniverse();
+                    URI svgUri = universe.loadSVG(new StringReader(svgStr), "graph");
 
-                    // for displaying svg
                     SVGIcon icon = new SVGIcon();
-                    icon.setSvgURI(outfile.toURI());
+                    icon.setSvgUniverse(universe);
+                    icon.setSvgURI(svgUri);
+
                     icon.setAntiAlias(true);
                     icon.setAutosize(SVGIcon.AUTOSIZE_BESTFIT);
-                    icon.setPreferredSize(new Dimension(600, 400)); // optional default size
+
                     label = new JLabel(icon);
+                    label.revalidate();
+                    label.repaint();
 
                 } else {
-                    label = new JLabel("No SVG generated yet. Please run the message first.", SwingConstants.CENTER);
+                    // default if message hasn't been properly run
+                    label.setText("No SVG generated yet. Please run the message first or check for errors.");
 
                 }
 
+                label.setHorizontalAlignment(JLabel.CENTER);
+
                 svgScroll = new JScrollPane(label);
                 svgScroll.getVerticalScrollBar().setUnitIncrement(15);
+                svgScroll.revalidate();
+                svgScroll.repaint();
 
                 splitPane4 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
-
-                splitPane4.setResizeWeight(0.15);
+                splitPane4.setResizeWeight(0.1);
                 setCenterComponent(splitPane4);
+
+                splitPane4.revalidate();
+                splitPane4.repaint();
 
                 zoom(splitPane4);
                 splitPane4.addKeyListener(this);
                 splitPane4.setFocusable(true);
                 splitPane4.requestFocusInWindow();
+                labelDark();
+
             }
             case "java" -> {
                 headingArea.setText("Java Code \n(This is the starter java code)");
@@ -423,7 +465,7 @@ public class GUI extends JFrame implements KeyListener {
                 if (executed) {
                     codeArea.setText("Starter Java Code");
                 } else {
-                    codeArea.setText("No code available. Please run the message first.");
+                    codeArea.setText("No code available. Please run the message first or check for errors.");
                 }
                 codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
@@ -439,16 +481,16 @@ public class GUI extends JFrame implements KeyListener {
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
                 if (executed) {
-                    analysisArea.setText("Analysis Results");
+                    analysisArea.setText("Analysis Results\n" + analysisStr);
                 } else {
-                    analysisArea.setText("No analysis available. Please run the message first.");
+                    analysisArea.setText("No analysis available. Please run the message first or check for errors.");
                 }
 
                 highlightActiveMode(analysisBtn);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, analysisScroll);
-                splitPane2.setResizeWeight(0.15);
+                splitPane2.setResizeWeight(0.10);
                 setCenterComponent(splitPane2);
 
                 zoom(splitPane2);
@@ -470,8 +512,6 @@ public class GUI extends JFrame implements KeyListener {
                 setCenterComponent(splitPane3);
 
                 zoom(splitPane3);
-                codeArea.addKeyListener(this);
-                codeArea.setFocusable(true);
                 splitPane3.addKeyListener(this);
                 splitPane3.setFocusable(true);
                 splitPane3.requestFocusInWindow();
@@ -480,6 +520,7 @@ public class GUI extends JFrame implements KeyListener {
         }
     }
 
+    // sets up the center component of the frame
     private void setCenterComponent(Component comp) {
         Container contentPane = getContentPane();
         BorderLayout layout = (BorderLayout) contentPane.getLayout();
@@ -494,12 +535,14 @@ public class GUI extends JFrame implements KeyListener {
         repaint();
     }
 
+    // ensures that splitPane is set up properly
     private void setUpCodeScroll() {
         splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
 
         splitPane.setResizeWeight(0.25);
     }
 
+    // Sets up key pressed method to allow zoom
     @Override
     public void keyPressed(KeyEvent e) {
         JSplitPane ext = switch (currentMode) {
@@ -509,23 +552,21 @@ public class GUI extends JFrame implements KeyListener {
             default -> splitPane3;
         };
         if (e.getKeyCode() == KeyEvent.VK_EQUALS && e.isControlDown()) {
-            zoomFactor *= 1.1; // zoom in
+            zoomFactor += .1; // zoom in
             zoom(ext);
 
-            System.out.println("Zoom In");
         } else if (e.getKeyCode() == KeyEvent.VK_MINUS && e.isControlDown()) {
-            zoomFactor /= 1.1; // zoom out
+            zoomFactor -= .1; // zoom out
             zoom(ext);
 
-            System.out.println("Zoom Out");
         } else if (e.getKeyCode() == KeyEvent.VK_0 && e.isControlDown()) {
             zoomFactor = 1.0; // reset zoom
             zoom(ext);
 
-            System.out.println("Zoom Reset");
         }
     }
 
+    // zooming in or out based on what page the user is on
     public void zoom(JSplitPane ext) {
         Component[] arr = new Component[3];
         arr[0] = ext.getTopComponent();
@@ -549,9 +590,15 @@ public class GUI extends JFrame implements KeyListener {
 
                 if (view instanceof JTextArea textArea) {
                     textArea.setFont(textArea.getFont().deriveFont((float) (16f * zoomFactor)));
-                } else if (view instanceof JLabel label && currentMode.equals("svg") && executed) {
+                } else if (view instanceof JLabel label && currentMode.equals("svg") &&
+                        executed) {
+                    SVGUniverse universe = new SVGUniverse();
+                    URI svgUri = universe.loadSVG(new StringReader(svgStr), "graph");
+
                     SVGIcon icon = new SVGIcon();
-                    icon.setSvgURI(outfile.toURI());
+                    icon.setSvgUniverse(universe);
+                    icon.setSvgURI(svgUri);
+
                     icon.setAntiAlias(true);
                     icon.setAutosize(SVGIcon.AUTOSIZE_BESTFIT);
 
@@ -580,6 +627,30 @@ public class GUI extends JFrame implements KeyListener {
 
     @Override
     public void keyTyped(KeyEvent e) {
+    }
+
+    // Setting the background of the label
+    public void labelDark() {
+        if (dark) {
+            label.setBackground(new Color(40, 44, 52));
+            label.setForeground(Color.WHITE);
+        } else {
+            label.setBackground(Color.LIGHT_GRAY);
+            label.setForeground(Color.BLACK);
+        }
+
+        label.setOpaque(true);
+    }
+
+    // refocus the frame after a button is pressed
+    public void refocus() {
+        JSplitPane ext = switch (currentMode) {
+            case "java" -> splitPane;
+            case "svg" -> splitPane4;
+            case "analysis" -> splitPane2;
+            default -> splitPane3;
+        };
+        ext.requestFocusInWindow();
     }
 
 }
