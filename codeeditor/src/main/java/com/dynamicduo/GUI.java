@@ -1,17 +1,44 @@
+/*
+*
+* Copyright (C) 2025 Owen Forsyth and Daniel Mead
+*
+* This program is free software: you can redistribute it and/or modify 
+* it under the terms of the GNU General Public License as published by 
+* the Free Software Foundation, either version 3 of the License, or 
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful, 
+* but WITHOUT ANY WARRANTY; without even the implied warranty of 
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+* General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License 
+* along with this program. If not, see <https://www.gnu.org/licenses/>.
+*
+*/
+
 package com.dynamicduo;
 
+import com.dynamicduo.proto.lexer.Lexer;
+import com.dynamicduo.proto.parser.ProtocolParser;
+import com.dynamicduo.proto.parser.ParseException;
+import com.dynamicduo.proto.ast.ProtocolNode;
+import com.dynamicduo.proto.render.SVG;
+import com.dynamicduo.proto.render.SequenceDiagramFromAst;
+
 import javax.swing.*;
+
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.*;
+import java.net.URI;
 import java.util.HashMap;
 import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
 
+import com.kitfox.svg.SVGUniverse;
 import com.kitfox.svg.app.beans.SVGIcon;
-
-import guru.nidi.graphviz.engine.*;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -31,10 +58,11 @@ public class GUI extends JFrame implements KeyListener {
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
 
-    private SVG svg;
+    private Analysis analysis;
+    private String analysisStr, svgStr;
+
     private boolean executed = false, dark = false;
     private JLabel label = new JLabel();
-    private File outfile = new File("temp_graph.svg");
     private double zoomFactor = 1.0;
 
     public GUI() {
@@ -173,6 +201,9 @@ public class GUI extends JFrame implements KeyListener {
 
             // Saving the svg
             if (currentMode.equals("svg")) {
+                if (svgStr == null) {
+                    JOptionPane.showMessageDialog(this, "There is no SVG to save");
+                }
                 JFileChooser fileChooser = new JFileChooser();
                 fileChooser.setDialogTitle("Save Graph as SVG");
                 fileChooser.setSelectedFile(new File("graph.svg"));
@@ -187,17 +218,27 @@ public class GUI extends JFrame implements KeyListener {
                         file = new File(file.getParentFile(), file.getName() + ".svg");
                     }
 
-                    try {
-                        // Render and save SVG file
-                        Graphviz.fromGraph(svg.getGraph())
-                                .render(Format.SVG)
-                                .toFile(file);
-
+                    try (FileWriter writer = new FileWriter(file)) {
+                        writer.write(svgStr);
                         JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
-                    } catch (IOException ex) {
-                        JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
-                        ex.printStackTrace();
+                    } catch (IOException sf) {
+                        JOptionPane.showMessageDialog(this, "Error saving file: " + sf.getMessage());
+                        sf.printStackTrace();
                     }
+
+                    /*
+                     * try {
+                     * // Render and save SVG file
+                     * Graphviz.fromGraph(svg.getGraph())
+                     * .render(Format.SVG)
+                     * .toFile(file);
+                     * 
+                     * JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
+                     * } catch (IOException ex) {
+                     * JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
+                     * ex.printStackTrace();
+                     * }
+                     */
                 }
 
             } else { // Saving from any other file
@@ -322,35 +363,77 @@ public class GUI extends JFrame implements KeyListener {
         });
 
         runBtn.addActionListener(e -> {
-
-            // example data 1
             /*
+             * String[] messageArr;
+             * 
+             * if (count == 0) {
              * String[] messages = { "Message 1", "Message 2" };
              * String[] passer = { "Alice", "Bob" };
              * 
-             * svg = new SVG(3, "Alice", "Bob", messages, passer);
+             * //svg = new SVG(3, "Alice", "Bob", messages, passer);
              * 
+             * messageArr = messages;
+             * 
+             * } else {
+             * String[] messages = { "Message 1", "Message 2", "Message 3", "Message 4",
+             * "Message 5", "Message 6" };
+             * String[] passer = { "Alice", "Bob", "Alice", "Alice", "Bob", "Alice" };
+             * 
+             * // svg = new SVG(7, "Alice", "Bob", messages, passer);
+             * messageArr = messages;
+             * }
              */
 
-            // example date 2
-            String[] messages = { "Message 1", "Message 2", "Message 3", "Message 4", "Message 5", "Message 6" };
-            String[] passer = { "Alice", "Bob", "Alice", "Alice", "Bob", "Alice" };
-
-            svg = new SVG(7, "Alice", "Bob", messages, passer);
-
-            executed = true;
+            String input = codeArea.getText();
+            Lexer lexer = new Lexer(input);
+            ProtocolParser parser = new ProtocolParser(lexer);
 
             try {
-                // for displaying svg
-                Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toFile(outfile);
-            } catch (IOException f) {
-                f.printStackTrace();
+                ProtocolNode tree = parser.parse();
+
+                System.out.println("=== AST ===");
+                System.out.println(tree.pretty());
+
+                // Use our adapter to create a nice sequence diagram SVG
+                svgStr = SequenceDiagramFromAst.renderTwoParty(tree);
+                executed = true;
+
+            } catch (ParseException pe) {
+                System.err.println("Parse error: " + pe.getMessage());
+                System.err.println("Line: " + pe.getLine());
+                errorArea.setText("Parse error: " + pe.getMessage() + "\nLine: " + pe.getLine());
+                executed = false;
+            } catch (Exception re) {
+                System.err.println("Render failed: " + re.getMessage());
+                errorArea.setText("Render failed: " + re.getMessage());
+                executed = false;
             }
 
-            switchMode("svg");
+            if (executed) {
+
+                // Re-render the SVG file
+
+                // svgStr = Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toString();
+                svgStr = svgStr.replace("stroke=\"transparent\"", "stroke=\"none\"");
+
+                /*
+                 * analysis = new Analysis(messageArr);
+                 * analysisStr = analysis.getAnalysis();
+                 */
+                switchMode("svg");
+
+            }
 
             JOptionPane.showMessageDialog(this, "Run Button pressed");
 
+            /*
+             * if (count == 0) {
+             * count++;
+             * } else {
+             * count = 0;
+             * }
+             * 
+             */
         });
 
         switchMode("message");
@@ -397,50 +480,65 @@ public class GUI extends JFrame implements KeyListener {
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
 
-                if (executed) {
-                    // Fix for invisible strokes in SVG
-                    try {
-                        String contentFile = new String(java.nio.file.Files.readAllBytes(outfile.toPath()));
-                        contentFile = contentFile.replace("stroke=\"transparent\"", "stroke=\"none\"");
-                        java.nio.file.Files.write(outfile.toPath(), contentFile.getBytes());
-                    } catch (IOException ioex) {
-                        ioex.printStackTrace();
-                    }
+                if (executed && svgStr != null) {
 
-                    // for displaying svg
+                    SVGUniverse universe = new SVGUniverse();
+                    URI svgUri = universe.loadSVG(new StringReader(svgStr), "graph");
+
                     SVGIcon icon = new SVGIcon();
-                    icon.setSvgURI(outfile.toURI());
+                    icon.setSvgUniverse(universe);
+                    icon.setSvgURI(svgUri);
+
                     icon.setAntiAlias(true);
                     icon.setAutosize(SVGIcon.AUTOSIZE_BESTFIT);
-                    icon.setPreferredSize(new Dimension(600, 400)); // optional default size
+
                     label = new JLabel(icon);
+                    label.revalidate();
+                    label.repaint();
 
                 } else {
                     // default if message hasn't been properly run
-                    label = new JLabel("No SVG generated yet. Please run the message first or check for errors.",
-                            SwingConstants.CENTER);
+                    label.setText("No SVG generated yet. Please run the message first or check for errors.");
 
                 }
 
+                label.setHorizontalAlignment(JLabel.CENTER);
+
                 svgScroll = new JScrollPane(label);
                 svgScroll.getVerticalScrollBar().setUnitIncrement(15);
+                svgScroll.revalidate();
+                svgScroll.repaint();
 
                 splitPane4 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, svgScroll);
-
                 splitPane4.setResizeWeight(0.1);
                 setCenterComponent(splitPane4);
+
+                splitPane4.revalidate();
+                splitPane4.repaint();
 
                 zoom(splitPane4);
                 splitPane4.addKeyListener(this);
                 splitPane4.setFocusable(true);
                 splitPane4.requestFocusInWindow();
                 labelDark();
+
             }
             case "java" -> {
                 headingArea.setText("Java Code \n(This is the starter java code)");
                 highlightActiveMode(javaBtn);
                 if (executed) {
-                    codeArea.setText("Starter Java Code");
+                    File file = new File("codeeditor\\src\\main\\java\\com\\dynamicduo\\StarterCode.txt");
+                    try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            codeArea.append(line + "\n");
+                        }
+                    } catch (IOException fstart) {
+                        fstart.printStackTrace();
+                        JOptionPane.showMessageDialog(codeArea, "Error reading file: " + fstart.getMessage(),
+                                "File Error",
+                                JOptionPane.ERROR_MESSAGE);
+                    }
                 } else {
                     codeArea.setText("No code available. Please run the message first or check for errors.");
                 }
@@ -458,7 +556,7 @@ public class GUI extends JFrame implements KeyListener {
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
                 if (executed) {
-                    analysisArea.setText("Analysis Results");
+                    analysisArea.setText("Analysis Results\n" + analysisStr);
                 } else {
                     analysisArea.setText("No analysis available. Please run the message first or check for errors.");
                 }
@@ -567,9 +665,15 @@ public class GUI extends JFrame implements KeyListener {
 
                 if (view instanceof JTextArea textArea) {
                     textArea.setFont(textArea.getFont().deriveFont((float) (16f * zoomFactor)));
-                } else if (view instanceof JLabel label && currentMode.equals("svg") && executed) {
+                } else if (view instanceof JLabel label && currentMode.equals("svg") &&
+                        executed && svgStr != null) {
+                    SVGUniverse universe = new SVGUniverse();
+                    URI svgUri = universe.loadSVG(new StringReader(svgStr), "graph");
+
                     SVGIcon icon = new SVGIcon();
-                    icon.setSvgURI(outfile.toURI());
+                    icon.setSvgUniverse(universe);
+                    icon.setSvgURI(svgUri);
+
                     icon.setAntiAlias(true);
                     icon.setAutosize(SVGIcon.AUTOSIZE_BESTFIT);
 

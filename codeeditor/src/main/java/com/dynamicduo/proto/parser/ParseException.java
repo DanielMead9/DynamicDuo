@@ -17,14 +17,18 @@
 *
 */
 
-package com.dynamicduo;
+package com.dynamicduo.proto.parser;
 
-import javax.swing.SwingUtilities;
+/** Thrown when the parser hits unexpected tokens. */
+public class ParseException extends Exception {
+    private final int line;
 
-public class SecurityApp {
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            new GUI().setVisible(true);
-        });
+    public ParseException(String message, int line) {
+        super(message);
+        this.line = line;
+    }
+
+    public int getLine() {
+        return line;
     }
 }

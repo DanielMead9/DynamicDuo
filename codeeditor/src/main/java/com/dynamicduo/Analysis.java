@@ -19,12 +19,17 @@
 
 package com.dynamicduo;
 
-import javax.swing.SwingUtilities;
+public class Analysis {
+    private String analysis = "";
 
-public class SecurityApp {
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            new GUI().setVisible(true);
-        });
+    public Analysis(String[] messages) {
+        for (int i = 0; i < messages.length; i++) {
+            analysis += messages[i] + "\n\n";
+        }
     }
+
+    public String getAnalysis() {
+        return analysis;
+    }
+
 }

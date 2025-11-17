@@ -17,14 +17,27 @@
 *
 */
 
-package com.dynamicduo;
+package com.dynamicduo.proto.lexer;
 
-import javax.swing.SwingUtilities;
+/**
+ * Token categories produced by the lexer.
+ * Keep this tiny and specific to today's grammar.
+ */
+public enum TokenType {
+    // Keywords
+    ROLES,
+    ENC,
+    DEC, // reserved for later, not used today
 
-public class SecurityApp {
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            new GUI().setVisible(true);
-        });
-    }
+    // Symbols
+    ARROW, // ->
+    COLON, // :
+    COMMA, // ,
+    EQUAL, // =
+    LPAREN, // (
+    RPAREN, // )
+    EOF, // end of input
+
+    // Identifiers: names like Alice, Bob, k, m, c...
+    IDENTIFIER
 }

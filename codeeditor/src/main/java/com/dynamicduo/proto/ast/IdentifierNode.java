@@ -17,14 +17,22 @@
 *
 */
 
-package com.dynamicduo;
+package com.dynamicduo.proto.ast;
 
-import javax.swing.SwingUtilities;
+/** Simple identifier wrapper (e.g., Alice, Bob, k, m, c). */
+public class IdentifierNode extends SyntaxNode {
+    private final String name;
 
-public class SecurityApp {
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            new GUI().setVisible(true);
-        });
+    public IdentifierNode(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    @Override
+    public String label() {
+        return "Id(" + name + ")";
     }
 }
