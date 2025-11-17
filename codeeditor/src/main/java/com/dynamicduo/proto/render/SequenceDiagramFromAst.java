@@ -36,7 +36,7 @@ public final class SequenceDiagramFromAst {
      * @param proto  Root AST (ProtocolNode)
      * @param outSvg Output SVG path, e.g. "pretty_protocol.svg"
      */
-    public static void renderTwoParty(ProtocolNode proto, String outSvg) throws Exception {
+    public static String renderTwoParty(ProtocolNode proto) throws Exception {
         // 1) Extract roles in declaration order
         List<String> roles = proto.getRoles().getRoles().stream()
                 .map(IdentifierNode::getName)
@@ -67,12 +67,13 @@ public final class SequenceDiagramFromAst {
         SVG svgBuilder = new SVG(numNodes, p1, p2, messages, passer);
 
         // 4) Render that graph to an SVG file using graphviz-java
-        Graphviz.fromGraph(svgBuilder.getGraph())
+        String outSvg = Graphviz.fromGraph(svgBuilder.getGraph())
                 .render(Format.SVG)
-                .toFile(new File(outSvg));
+                .toString();
 
-        System.out.println("[SequenceDiagramFromAst] Wrote SVG: "
-                + new File(outSvg).getAbsolutePath());
+        // System.out.println("[SequenceDiagramFromAst] Wrote SVG: "
+        // + new File(outSvg).getAbsolutePath());
+        return outSvg;
     }
 
     // === label helper: reuse our encryption labeling logic ===
