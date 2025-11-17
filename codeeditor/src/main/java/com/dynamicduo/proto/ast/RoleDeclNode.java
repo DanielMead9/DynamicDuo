@@ -17,19 +17,27 @@
 *
 */
 
-package com.dynamicduo;
+package com.dynamicduo.proto.ast;
 
-public class Analysis {
-    private String analysis = "";
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
-    public Analysis(String[] messages) {
-        for (int i = 0; i < messages.length; i++) {
-            analysis += messages[i] + "\n\n";
-        }
+/** Represents: roles: Alice, Bob */
+public class RoleDeclNode extends SyntaxNode {
+    private final List<IdentifierNode> roles = new ArrayList<>();
+
+    public void addRole(IdentifierNode id) {
+        roles.add(id);
     }
 
-    public String getAnalysis() {
-        return analysis;
+    public List<IdentifierNode> getRoles() {
+        return roles;
     }
 
+    @Override
+    public String label() {
+        String names = roles.stream().map(IdentifierNode::getName).collect(Collectors.joining(", "));
+        return "Roles: [" + names + "]";
+    }
 }

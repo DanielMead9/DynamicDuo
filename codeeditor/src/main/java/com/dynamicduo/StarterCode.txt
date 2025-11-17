@@ -1,0 +1,221 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.net.*;
+import java.util.*;
+import java.util.List;
+
+public class MessageApp {
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            AdversaryServerGUI server = new AdversaryServerGUI(5000);
+            server.startServer();
+
+            new ChatClientGUI("Client 1", "localhost", 5000);
+            new ChatClientGUI("Client 2", "localhost", 5000);
+        });
+    }
+}
+
+class AdversaryServerGUI extends JFrame {
+    private JTextArea logArea;
+    private ServerSocket serverSocket;
+    private final List<ClientHandler> clients = Collections.synchronizedList(new ArrayList<>());
+    private int port;
+
+    public AdversaryServerGUI(int port) {
+        super("Adversary");
+        this.port = port;
+        setSize(450, 400);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+
+        logArea = new JTextArea();
+        logArea.setEditable(false);
+        logArea.setBackground(new Color(25, 25, 25));
+        logArea.setForeground(Color.RED);
+
+        add(new JScrollPane(logArea), BorderLayout.CENTER);
+        JLabel title = new JLabel("Adversary", JLabel.CENTER);
+        title.setForeground(Color.RED);
+        add(title, BorderLayout.NORTH);
+
+        setVisible(true);
+    }
+
+    public void startServer() {
+        Thread serverThread = new Thread(() -> {
+            try {
+                serverSocket = new ServerSocket(port);
+                log("Adversary online. Listening on port " + port + "...");
+
+                while (true) {
+                    Socket socket = serverSocket.accept();
+                    ClientHandler handler = new ClientHandler(socket);
+                    clients.add(handler);
+                    handler.start();
+                }
+            } catch (IOException e) {
+                log("Error: " + e.getMessage());
+            }
+        });
+        serverThread.start();
+    }
+
+    private void log(String message) {
+        SwingUtilities.invokeLater(() -> logArea.append(message + "\n"));
+    }
+
+    private void broadcast(String message, ClientHandler sender) {
+        synchronized (clients) {
+            for (ClientHandler c : clients) {
+                if (c != sender) {
+                    c.sendMessage(message);
+                }
+            }
+        }
+        log("[Intercepted] " + message);
+    }
+
+    private class ClientHandler extends Thread {
+        private Socket socket;
+        private PrintWriter out;
+        private BufferedReader in;
+        private String clientName = "Unknown";
+
+        public ClientHandler(Socket socket) {
+            this.socket = socket;
+        }
+
+        public void run() {
+            try {
+                out = new PrintWriter(socket.getOutputStream(), true);
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+                out.println("Enter your name:");
+                clientName = in.readLine();
+                broadcast(clientName + " connected.", this);
+
+                String msg;
+                while ((msg = in.readLine()) != null) {
+                    broadcast(clientName + ": " + msg, this);
+                }
+            } catch (IOException e) {
+                log(clientName + " disconnected.");
+            } finally {
+                try {
+                    socket.close();
+                } catch (IOException ignored) {
+                }
+                clients.remove(this);
+                broadcast(clientName + " left the chat.", this);
+            }
+        }
+
+        public void sendMessage(String message) {
+            out.println(message);
+        }
+    }
+}
+
+class ChatClientGUI extends JFrame {
+    private JTextArea chatArea;
+    private JTextField inputField;
+    private JTextField nameField;
+    private JButton sendButton;
+    private Socket socket;
+    private PrintWriter out;
+    private BufferedReader in;
+    private String clientName = "";
+    private boolean nameSent = false;
+
+    public ChatClientGUI(String title, String host, int port) {
+        super(title);
+        setupUI();
+
+        new Thread(() -> {
+            try {
+                socket = new Socket(host, port);
+                out = new PrintWriter(socket.getOutputStream(), true);
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+                new Thread(this::readMessages).start();
+
+                SwingUtilities.invokeLater(
+                        () -> JOptionPane.showMessageDialog(this, "Connected to chat. Enter your name to begin."));
+
+                nameField.setEnabled(true);
+
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(this, "Failed to connect: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    private void setupUI() {
+        setSize(400, 400);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+
+        chatArea = new JTextArea();
+        chatArea.setEditable(false);
+        chatArea.setBackground(new Color(245, 245, 245));
+        chatArea.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        add(new JScrollPane(chatArea), BorderLayout.CENTER);
+
+        JPanel topPanel = new JPanel(new BorderLayout());
+        nameField = new JTextField("Enter name");
+        nameField.setEnabled(false);
+        topPanel.add(new JLabel("Name: "), BorderLayout.WEST);
+        topPanel.add(nameField, BorderLayout.CENTER);
+        add(topPanel, BorderLayout.NORTH);
+
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        inputField = new JTextField();
+        sendButton = new JButton("Send");
+        bottomPanel.add(inputField, BorderLayout.CENTER);
+        bottomPanel.add(sendButton, BorderLayout.EAST);
+        add(bottomPanel, BorderLayout.SOUTH);
+
+        nameField.addActionListener(e -> sendName());
+        sendButton.addActionListener(e -> sendMessage());
+        inputField.addActionListener(e -> sendMessage());
+
+        setVisible(true);
+    }
+
+    private void sendName() {
+        clientName = nameField.getText().trim();
+        if (!clientName.isEmpty()) {
+            out.println(clientName);
+            chatArea.append("You joined as " + clientName + "\n");
+            nameField.setEnabled(false);
+            nameSent = true;
+        }
+    }
+
+    private void sendMessage() {
+        String msg = inputField.getText().trim();
+        if (!msg.isEmpty() && out != null && nameSent) {
+            out.println(msg);
+            chatArea.append("You: " + msg + "\n");
+            inputField.setText("");
+        }
+    }
+
+    private void readMessages() {
+        try {
+            String msg;
+            while ((msg = in.readLine()) != null) {
+
+                if (!msg.startsWith(clientName + ":")) {
+                    chatArea.append(msg + "\n");
+                }
+            }
+        } catch (IOException e) {
+            chatArea.append("Disconnected from chat.\n");
+        }
+    }
+}

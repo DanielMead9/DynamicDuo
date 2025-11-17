@@ -17,19 +17,27 @@
 *
 */
 
-package com.dynamicduo;
+package com.dynamicduo.proto.lexer;
 
-public class Analysis {
-    private String analysis = "";
+/**
+ * Token categories produced by the lexer.
+ * Keep this tiny and specific to today's grammar.
+ */
+public enum TokenType {
+    // Keywords
+    ROLES,
+    ENC,
+    DEC, // reserved for later, not used today
 
-    public Analysis(String[] messages) {
-        for (int i = 0; i < messages.length; i++) {
-            analysis += messages[i] + "\n\n";
-        }
-    }
+    // Symbols
+    ARROW, // ->
+    COLON, // :
+    COMMA, // ,
+    EQUAL, // =
+    LPAREN, // (
+    RPAREN, // )
+    EOF, // end of input
 
-    public String getAnalysis() {
-        return analysis;
-    }
-
+    // Identifiers: names like Alice, Bob, k, m, c...
+    IDENTIFIER
 }

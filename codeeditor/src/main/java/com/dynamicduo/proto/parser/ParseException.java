@@ -17,19 +17,18 @@
 *
 */
 
-package com.dynamicduo;
+package com.dynamicduo.proto.parser;
 
-public class Analysis {
-    private String analysis = "";
+/** Thrown when the parser hits unexpected tokens. */
+public class ParseException extends Exception {
+    private final int line;
 
-    public Analysis(String[] messages) {
-        for (int i = 0; i < messages.length; i++) {
-            analysis += messages[i] + "\n\n";
-        }
+    public ParseException(String message, int line) {
+        super(message);
+        this.line = line;
     }
 
-    public String getAnalysis() {
-        return analysis;
+    public int getLine() {
+        return line;
     }
-
 }

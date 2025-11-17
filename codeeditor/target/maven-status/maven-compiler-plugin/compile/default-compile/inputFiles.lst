@@ -1,2 +1,19 @@
-C:\Users\djmea\OneDrive\Documents\Capstone\DynamicDuo\codeeditor\src\main\java\com\dynamicduo\SecurityApp.java
-C:\Users\djmea\OneDrive\Documents\Capstone\DynamicDuo\codeeditor\src\main\java\com\dynamicduo\GUI.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/SecurityApp.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/render/SvgRenderer.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/ast/IdentifierNode.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/Demo.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/ast/EncryptExprNode.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/lexer/TokenType.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/ast/SyntaxNode.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/ast/AssignNode.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/lexer/Lexer.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/parser/ParseException.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/ast/MessageSendNode.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/lexer/Token.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/ast/ProtocolNode.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/render/DotBuilder.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/ast/RoleDeclNode.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/parser/ProtocolParser.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/proto/render/SequenceDiagramFromAst.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/GUI.java
+/Users/owenforsyth/Desktop/Senior CS Capstone/DynamicDuo/codeeditor/src/main/java/com/dynamicduo/SVG.java

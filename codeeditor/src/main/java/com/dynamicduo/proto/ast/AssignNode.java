@@ -17,19 +17,35 @@
 *
 */
 
-package com.dynamicduo;
+package com.dynamicduo.proto.ast;
 
-public class Analysis {
-    private String analysis = "";
+import java.util.List;
 
-    public Analysis(String[] messages) {
-        for (int i = 0; i < messages.length; i++) {
-            analysis += messages[i] + "\n\n";
-        }
+/** Represents: c = Enc(k, m) (target = value) */
+public class AssignNode extends SyntaxNode {
+    private final IdentifierNode target;
+    private final SyntaxNode value; // usually EncryptExprNode
+
+    public AssignNode(IdentifierNode target, SyntaxNode value) {
+        this.target = target;
+        this.value = value;
     }
 
-    public String getAnalysis() {
-        return analysis;
+    public IdentifierNode getTarget() {
+        return target;
     }
 
+    public SyntaxNode getValue() {
+        return value;
+    }
+
+    @Override
+    public String label() {
+        return "Assign(" + target.getName() + " = ...)";
+    }
+
+    @Override
+    public List<SyntaxNode> children() {
+        return List.of(value);
+    }
 }
