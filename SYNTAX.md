@@ -1,6 +1,6 @@
 # Message Flow Language (MFL) — Syntax v0.1
 
-A tiny, student-friendly language for describing security message flows and checking simple secrecy claims.
+A tiny, student friendly language for describing security message flows and checking simple secrecy claims.
 Files use the .flow extension.
 
 ##  Quick start
@@ -68,7 +68,7 @@ cert certA(pkA);
 Examples:
 
 Alice -> Bob : m1;                     // sends m1 in the clear
-Alice -> Bob : Enc(kAB, m1, m2);       // encryption
+Alice -> Bob : Enc(kAB, m1 || m2);      // encryption with concatenated (combined) messages
 Bob   -> Alice : Sig(skA, m1);         // digital signature
 Bob   -> Alice : Mac(kAB, m2);         // MAC
 
@@ -89,7 +89,7 @@ a single name: m
 
 a call: Enc(k, m) or Sig(sk, m)
 
-multiple items (comma = concatenation): Enc(k, m1, m2)
+multiple items ( double vertical lines = concatenation): Enc(k, m1 || m2 || m3 )
 
 ## Built-in primitives (v0.1)
 
@@ -170,11 +170,13 @@ Can be:
 
 Identifier: m
 
-Call: Enc(k, m1, m2)
+Call: Enc(k, m1 || m2)
 
-Tuple/concatenation: (m1, m2, m3)
+Tuple/concatenation: (m1 || m2 || m3)
 
-EBNF grammar (v0.1)
+
+
+## EBNF Grammar (v0.2)
 program        := { decl | step } ;
 
 decl           := "principal" ident_list ";"
@@ -189,8 +191,12 @@ step           := send | assert_secret ;
 send           := IDENT "->" IDENT ":" expr ";" ;
 assert_secret  := "assert" "secret" "(" IDENT ")" ";" ;
 
-expr           := IDENT
+expr           := concat_expr ;
+
+concat_expr    := term { "||" term } ;
+
+term           := IDENT
                | IDENT "(" [ expr { "," expr } ] ")"
-               | "(" expr { "," expr } ")" ;
+               | "(" expr ")" ;
 
 ident_list     := IDENT { "," IDENT } ;
