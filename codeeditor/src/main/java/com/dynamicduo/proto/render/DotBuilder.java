@@ -1,3 +1,22 @@
+/*
+*
+* Copyright (C) 2025 Owen Forsyth and Daniel Mead
+*
+* This program is free software: you can redistribute it and/or modify 
+* it under the terms of the GNU General Public License as published by 
+* the Free Software Foundation, either version 3 of the License, or 
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful, 
+* but WITHOUT ANY WARRANTY; without even the implied warranty of 
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+* General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License 
+* along with this program. If not, see <https://www.gnu.org/licenses/>.
+*
+*/
+
 package com.dynamicduo.proto.render;
 
 import com.dynamicduo.proto.ast.*;
@@ -13,17 +32,21 @@ import java.util.stream.Collectors;
  *
  * - Roles are boxes across the top.
  * - Each message is on its own row (time step) with a horizontal arrow
- *   from sender to receiver.
+ * from sender to receiver.
  * - We use invisible "points" to align columns and rows; no lifelines yet.
  */
 public final class DotBuilder {
-    private DotBuilder() {}
+    private DotBuilder() {
+    }
 
-    /** Build DOT text and write to the given path; returns the absolute .dot path. */
+    /**
+     * Build DOT text and write to the given path; returns the absolute .dot path.
+     */
     public static Path buildAndWrite(ProtocolNode root, String dotFilePath) throws IOException {
         String dot = buildDot(root);
         Path path = Path.of(dotFilePath).toAbsolutePath();
-        if (path.getParent() != null) Files.createDirectories(path.getParent());
+        if (path.getParent() != null)
+            Files.createDirectories(path.getParent());
         Files.writeString(path, dot);
         System.out.println("[DotBuilder] Wrote DOT file: " + path);
         return path;
@@ -51,8 +74,8 @@ public final class DotBuilder {
         // 1) Header nodes (roles across the top)
         for (String role : roles) {
             sb.append("  ").append(headerId(role))
-              .append(" [label=\"").append(escape(role))
-              .append("\", shape=box, style=rounded];\n");
+                    .append(" [label=\"").append(escape(role))
+                    .append("\", shape=box, style=rounded];\n");
         }
         sb.append("\n");
 
@@ -60,19 +83,21 @@ public final class DotBuilder {
         for (int r = 0; r < rows; r++) {
             for (String role : roles) {
                 sb.append("  ").append(pointId(role, r))
-                  .append(" [label=\"\", shape=point, width=0.02, height=0.02];\n");
+                        .append(" [label=\"\", shape=point, width=0.02, height=0.02];\n");
             }
         }
         sb.append("\n");
 
         // 3) Rank constraints: headers on same row; each message row aligned
         sb.append("  { rank=same; ");
-        for (String role : roles) sb.append(headerId(role)).append(" ");
+        for (String role : roles)
+            sb.append(headerId(role)).append(" ");
         sb.append("}\n");
 
         for (int r = 0; r < rows; r++) {
             sb.append("  { rank=same; ");
-            for (String role : roles) sb.append(pointId(role, r)).append(" ");
+            for (String role : roles)
+                sb.append(pointId(role, r)).append(" ");
             sb.append("}\n");
         }
         sb.append("\n");
@@ -80,8 +105,8 @@ public final class DotBuilder {
         // 4) Invisible links to keep columns aligned (header -> first row point)
         for (String role : roles) {
             sb.append("  ").append(headerId(role))
-              .append(" -> ").append(pointId(role, 0))
-              .append(" [style=invis];\n");
+                    .append(" -> ").append(pointId(role, 0))
+                    .append(" [style=invis];\n");
         }
         sb.append("\n");
 
@@ -89,13 +114,13 @@ public final class DotBuilder {
         for (int i = 0; i < messages.size(); i++) {
             MessageSendNode msg = messages.get(i);
             String fromRole = msg.getSender().getName();
-            String toRole   = msg.getReceiver().getName();
-            String label    = labelFor(msg.getBody());
+            String toRole = msg.getReceiver().getName();
+            String label = labelFor(msg.getBody());
 
             sb.append("  ").append(pointId(fromRole, i))
-              .append(" -> ").append(pointId(toRole, i))
-              .append(" [label=\"").append(escape(label))
-              .append("\", constraint=false];\n");
+                    .append(" -> ").append(pointId(toRole, i))
+                    .append(" [label=\"").append(escape(label))
+                    .append("\", constraint=false];\n");
         }
 
         sb.append("}\n");
@@ -131,4 +156,3 @@ public final class DotBuilder {
         return base.isEmpty() ? "Role" : base;
     }
 }
-
