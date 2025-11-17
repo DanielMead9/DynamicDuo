@@ -402,8 +402,11 @@ public class GUI extends JFrame implements KeyListener {
                 System.err.println("Parse error: " + pe.getMessage());
                 System.err.println("Line: " + pe.getLine());
                 errorArea.setText("Parse error: " + pe.getMessage() + "\nLine: " + pe.getLine());
+                executed = false;
             } catch (Exception re) {
                 System.err.println("Render failed: " + re.getMessage());
+                errorArea.setText("Render failed: " + re.getMessage());
+                executed = false;
             }
 
             if (executed) {
