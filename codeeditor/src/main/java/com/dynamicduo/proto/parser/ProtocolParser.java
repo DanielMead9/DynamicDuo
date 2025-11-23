@@ -1,3 +1,22 @@
+/*
+*
+* Copyright (C) 2025 Owen Forsyth and Daniel Mead
+*
+* This program is free software: you can redistribute it and/or modify 
+* it under the terms of the GNU General Public License as published by 
+* the Free Software Foundation, either version 3 of the License, or 
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful, 
+* but WITHOUT ANY WARRANTY; without even the implied warranty of 
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+* General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License 
+* along with this program. If not, see <https://www.gnu.org/licenses/>.
+*
+*/
+
 package com.dynamicduo.proto.parser;
 
 import com.dynamicduo.proto.lexer.*;
@@ -10,11 +29,11 @@ import java.util.List;
  * Recursive-descent parser for the minimal protocol grammar.
  *
  * Grammar:
- *   protocol     → rolesDecl message* EOF ;
- *   rolesDecl    → "roles" ":" IDENT ( "," IDENT )* ;
- *   message      → IDENT ARROW IDENT ":" stmt ;
- *   stmt         → IDENT "=" encExpr | encExpr ;
- *   encExpr      → "Enc" "(" IDENT "," IDENT ")" ;
+ * protocol → rolesDecl message* EOF ;
+ * rolesDecl → "roles" ":" IDENT ( "," IDENT )* ;
+ * message → IDENT ARROW IDENT ":" stmt ;
+ * stmt → IDENT "=" encExpr | encExpr ;
+ * encExpr → "Enc" "(" IDENT "," IDENT ")" ;
  */
 public class ProtocolParser {
 
@@ -105,7 +124,8 @@ public class ProtocolParser {
     }
 
     private Token consume(TokenType type, String message) throws ParseException {
-        if (check(type)) return advance();
+        if (check(type))
+            return advance();
         throw error(peek(), message);
     }
 
@@ -114,18 +134,22 @@ public class ProtocolParser {
     }
 
     private boolean check(TokenType type) {
-        if (isAtEnd()) return false;
+        if (isAtEnd())
+            return false;
         return peek().getType() == type;
     }
 
     private boolean checkNext(TokenType type) {
-        if (isAtEnd()) return false;
-        if (tokens.get(current).getType() == TokenType.EOF) return false;
+        if (isAtEnd())
+            return false;
+        if (tokens.get(current).getType() == TokenType.EOF)
+            return false;
         return tokens.get(current + 1).getType() == type;
     }
 
     private Token advance() {
-        if (!isAtEnd()) current++;
+        if (!isAtEnd())
+            current++;
         return previous();
     }
 

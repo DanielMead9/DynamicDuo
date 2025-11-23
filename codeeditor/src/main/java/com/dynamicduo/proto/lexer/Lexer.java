@@ -1,3 +1,22 @@
+/*
+*
+* Copyright (C) 2025 Owen Forsyth and Daniel Mead
+*
+* This program is free software: you can redistribute it and/or modify 
+* it under the terms of the GNU General Public License as published by 
+* the Free Software Foundation, either version 3 of the License, or 
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful, 
+* but WITHOUT ANY WARRANTY; without even the implied warranty of 
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+* General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License 
+* along with this program. If not, see <https://www.gnu.org/licenses/>.
+*
+*/
+
 package com.dynamicduo.proto.lexer;
 
 /**
@@ -28,13 +47,19 @@ public class Lexer {
 
         // Single-char symbols
         switch (c) {
-            case ':': return new Token(TokenType.COLON, ":", line);
-            case ',': return new Token(TokenType.COMMA, ",", line);
-            case '=': return new Token(TokenType.EQUAL, "=", line);
-            case '(' : return new Token(TokenType.LPAREN, "(", line);
-            case ')' : return new Token(TokenType.RPAREN, ")", line);
+            case ':':
+                return new Token(TokenType.COLON, ":", line);
+            case ',':
+                return new Token(TokenType.COMMA, ",", line);
+            case '=':
+                return new Token(TokenType.EQUAL, "=", line);
+            case '(':
+                return new Token(TokenType.LPAREN, "(", line);
+            case ')':
+                return new Token(TokenType.RPAREN, ")", line);
             case '-':
-                if (match('>')) return new Token(TokenType.ARROW, "->", line);
+                if (match('>'))
+                    return new Token(TokenType.ARROW, "->", line);
                 // fall-through to identifier handling if lone '-'
                 break;
         }
@@ -61,10 +86,14 @@ public class Lexer {
 
         // Recognize keywords
         switch (text) {
-            case "roles": return new Token(TokenType.ROLES, text, line);
-            case "Enc":   return new Token(TokenType.ENC, text, line);
-            case "Dec":   return new Token(TokenType.DEC, text, line);
-            default:      return new Token(TokenType.IDENTIFIER, text, line);
+            case "roles":
+                return new Token(TokenType.ROLES, text, line);
+            case "Enc":
+                return new Token(TokenType.ENC, text, line);
+            case "Dec":
+                return new Token(TokenType.DEC, text, line);
+            default:
+                return new Token(TokenType.IDENTIFIER, text, line);
         }
     }
 
@@ -87,13 +116,23 @@ public class Lexer {
         }
     }
 
-    private boolean isAtEnd() { return pos >= len; }
-    private char peek()       { return isAtEnd() ? '\0' : src.charAt(pos); }
-    private char advance()    { return src.charAt(pos++); }
+    private boolean isAtEnd() {
+        return pos >= len;
+    }
+
+    private char peek() {
+        return isAtEnd() ? '\0' : src.charAt(pos);
+    }
+
+    private char advance() {
+        return src.charAt(pos++);
+    }
 
     private boolean match(char expected) {
-        if (isAtEnd()) return false;
-        if (src.charAt(pos) != expected) return false;
+        if (isAtEnd())
+            return false;
+        if (src.charAt(pos) != expected)
+            return false;
         pos++;
         return true;
     }
