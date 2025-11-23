@@ -33,6 +33,8 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.*;
 import java.net.URI;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
@@ -398,6 +400,8 @@ public class GUI extends JFrame implements KeyListener {
                 svgStr = SequenceDiagramFromAst.renderTwoParty(tree);
                 executed = true;
 
+                errorArea.setText("No errors detected.");
+
             } catch (ParseException pe) {
                 System.err.println("Parse error: " + pe.getMessage());
                 System.err.println("Line: " + pe.getLine());
@@ -527,7 +531,18 @@ public class GUI extends JFrame implements KeyListener {
                 headingArea.setText("Java Code \n(This is the starter java code)");
                 highlightActiveMode(javaBtn);
                 if (executed) {
-                    File file = new File("codeeditor\\src\\main\\java\\com\\dynamicduo\\StarterCode.txt");
+                    InputStream in = getClass().getResourceAsStream("/StarterCode.txt");
+                    File file = null;
+
+                    try {
+                        file = File.createTempFile("StarterCode", ".txt");
+                        file.deleteOnExit();
+                        FileOutputStream out = new FileOutputStream(file);
+                        in.transferTo(out);
+                    } catch (IOException fe) {
+                        fe.printStackTrace();
+                    }
+
                     try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                         String line;
                         while ((line = reader.readLine()) != null) {
