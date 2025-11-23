@@ -365,26 +365,6 @@ public class GUI extends JFrame implements KeyListener {
         });
 
         runBtn.addActionListener(e -> {
-            /*
-             * String[] messageArr;
-             * 
-             * if (count == 0) {
-             * String[] messages = { "Message 1", "Message 2" };
-             * String[] passer = { "Alice", "Bob" };
-             * 
-             * //svg = new SVG(3, "Alice", "Bob", messages, passer);
-             * 
-             * messageArr = messages;
-             * 
-             * } else {
-             * String[] messages = { "Message 1", "Message 2", "Message 3", "Message 4",
-             * "Message 5", "Message 6" };
-             * String[] passer = { "Alice", "Bob", "Alice", "Alice", "Bob", "Alice" };
-             * 
-             * // svg = new SVG(7, "Alice", "Bob", messages, passer);
-             * messageArr = messages;
-             * }
-             */
 
             String input = codeArea.getText();
             Lexer lexer = new Lexer(input);
@@ -415,9 +395,6 @@ public class GUI extends JFrame implements KeyListener {
 
             if (executed) {
 
-                // Re-render the SVG file
-
-                // svgStr = Graphviz.fromGraph(svg.getGraph()).render(Format.SVG).toString();
                 svgStr = svgStr.replace("stroke=\"transparent\"", "stroke=\"none\"");
 
                 /*
@@ -430,14 +407,6 @@ public class GUI extends JFrame implements KeyListener {
 
             JOptionPane.showMessageDialog(this, "Run Button pressed");
 
-            /*
-             * if (count == 0) {
-             * count++;
-             * } else {
-             * count = 0;
-             * }
-             * 
-             */
         });
 
         switchMode("message");
@@ -502,6 +471,7 @@ public class GUI extends JFrame implements KeyListener {
 
                 } else {
                     // default if message hasn't been properly run
+                    label.setIcon(null);
                     label.setText("No SVG generated yet. Please run the message first or check for errors.");
 
                 }
