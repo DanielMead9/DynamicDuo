@@ -501,6 +501,7 @@ public class GUI extends JFrame implements KeyListener {
                 headingArea.setText("Java Code \n(This is the starter java code)");
                 highlightActiveMode(javaBtn);
                 if (executed) {
+                    codeArea.setText("");
                     InputStream in = getClass().getResourceAsStream("/StarterCode.txt");
                     File file = null;
 
