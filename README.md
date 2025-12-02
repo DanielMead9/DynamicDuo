@@ -13,3 +13,5 @@ Poster: https://www.canva.com/design/DAG4iLX5zYg/Ojbo6s9i2h-WKAFsDzScuA/edit?utm
 Presentation: https://docs.google.com/presentation/d/1mIWKVul5iP_DjhpJzqapuQew6uhvpMKmkWwfHmrZZ3U/edit?usp=sharing 
 
 User Manual: https://docs.google.com/document/d/1fE992sTsCosboSsy-herg9Dju63hGIcYJsFWX-u4Oxc/edit?usp=sharing 
+
+Technical Document: https://docs.google.com/document/d/1WOmkFyMtY43E34vyGzMuOjlFn6qPWJqXhZre3zPUr6M/edit?usp=sharing
