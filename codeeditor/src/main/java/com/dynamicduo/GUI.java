@@ -45,6 +45,9 @@ import com.kitfox.svg.app.beans.SVGIcon;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 
+import com.dynamicduo.proto.analyzer.KnowledgeAnalyzer;
+
+
 public class GUI extends JFrame implements KeyListener {
 
     private JTextArea headingArea, analysisArea, errorArea;
@@ -376,10 +379,13 @@ public class GUI extends JFrame implements KeyListener {
                 System.out.println("=== AST ===");
                 System.out.println(tree.pretty());
 
-                // Use our adapter to create a nice sequence diagram SVG
+                // Generate SVG for the SVG tab
                 svgStr = SequenceDiagramFromAst.renderTwoParty(tree);
-                executed = true;
 
+                // NEW: run knowledge analysis and store the result string
+                analysisStr = KnowledgeAnalyzer.analyzeToString(tree);
+
+                executed = true;
                 errorArea.setText("No errors detected.");
 
             } catch (ParseException pe) {
@@ -394,20 +400,18 @@ public class GUI extends JFrame implements KeyListener {
             }
 
             if (executed) {
-
+                // Small SVG cleanup
                 svgStr = svgStr.replace("stroke=\"transparent\"", "stroke=\"none\"");
 
-                /*
-                 * analysis = new Analysis(messageArr);
-                 * analysisStr = analysis.getAnalysis();
-                 */
+                // After a successful run, go straight to SVG tab (possibly can change to analysis)
                 switchMode("svg");
-
             }
 
+            // debugging
             JOptionPane.showMessageDialog(this, "Run Button pressed");
 
-        });
+    });
+
 
         switchMode("message");
     }
