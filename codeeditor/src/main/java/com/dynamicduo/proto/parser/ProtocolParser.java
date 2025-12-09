@@ -1,21 +1,21 @@
 /*
-*
-* Copyright (C) 2025 Owen Forsyth and Daniel Mead
-*
-* This program is free software: you can redistribute it and/or modify 
-* it under the terms of the GNU General Public License as published by 
-* the Free Software Foundation, either version 3 of the License, or 
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful, 
-* but WITHOUT ANY WARRANTY; without even the implied warranty of 
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License 
-* along with this program. If not, see <https://www.gnu.org/licenses/>.
-*
-*/
+ *
+ * Copyright (C) 2025 Owen Forsyth and Daniel Mead
+ *
+ * This program is free software: you can redistribute it and/or modify 
+ * it under the terms of the GNU General Public License as published by 
+ * the Free Software Foundation, either version 3 of the License, or 
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, 
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * I should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
 
 package com.dynamicduo.proto.parser;
 
@@ -26,14 +26,32 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Recursive-descent parser for the minimal protocol grammar.
+ * Recursive-descent parser for the protocol language.
  *
- * Grammar:
- * protocol → rolesDecl message* EOF ;
- * rolesDecl → "roles" ":" IDENT ( "," IDENT )* ;
- * message → IDENT ARROW IDENT ":" stmt ;
- * stmt → IDENT "=" encExpr | encExpr ;
- * encExpr → "Enc" "(" IDENT "," IDENT ")" ;
+ * Right now this support:
+ *
+ *   protocol  → rolesDecl message* EOF ;
+ *   rolesDecl → "roles" ":" IDENT ( "," IDENT )* ;
+ *   message   → IDENT ARROW IDENT ":" stmt ;
+ *   stmt      → IDENT "=" expr | expr ;
+ *
+ *   expr         → concatExpr ;
+ *   concatExpr   → cryptoExpr ( "||" cryptoExpr )* ;
+ *   cryptoExpr   → encExpr
+ *                | macExpr
+ *                | signExpr
+ *                | verifyExpr
+ *                | hashExpr
+ *                | IDENT ;
+ *
+ *   encExpr      → "Enc"    "(" expr "," expr ")" ;
+ *   macExpr      → "Mac"    "(" IDENT "," expr ")" ;
+ *   signExpr     → "Sign"   "(" IDENT "," expr ")" ;
+ *   verifyExpr   → "Verify" "(" IDENT "," expr "," expr ")" ;
+ *   hashExpr     → "Hash"      "(" expr ")" ;
+ *
+ * I can extend this later with key/init/assert sections without changing
+ * the basic expression structure.
  */
 public class ProtocolParser {
 
@@ -41,7 +59,7 @@ public class ProtocolParser {
     private int current = 0;
 
     public ProtocolParser(Lexer lexer) {
-        // Pull all tokens up front so we can "peek" easily.
+        // I pull all tokens up front so it is easy to peek / lookahead.
         Token t;
         do {
             t = lexer.nextToken();
@@ -55,12 +73,15 @@ public class ProtocolParser {
         ProtocolNode proto = new ProtocolNode(roles);
 
         while (peek().getType() != TokenType.EOF) {
-
             MessageSendNode msg = message();
             proto.addMessage(msg);
         }
         return proto;
     }
+
+    // --------------------------------------------------------------------
+    // Top-level pieces
+    // --------------------------------------------------------------------
 
     // rolesDecl → "roles" ":" IDENT ( "," IDENT )* ;
     private RoleDeclNode rolesDecl() throws ParseException {
@@ -86,29 +107,139 @@ public class ProtocolParser {
         return new MessageSendNode(sender, receiver, body);
     }
 
-    // stmt → IDENT "=" encExpr | encExpr ;
+    // --------------------------------------------------------------------
+    // Statements and expressions
+    // --------------------------------------------------------------------
+
+    // stmt → IDENT "=" expr | expr ;
+    //
+    // I allow either an assignment (c = Enc(...)) or a bare expression
+    // (just sending a value directly).
     private SyntaxNode stmt() throws ParseException {
         if (check(TokenType.IDENTIFIER) && checkNext(TokenType.EQUAL)) {
             IdentifierNode target = identifier("Expected variable name.");
             consume(TokenType.EQUAL, "Expected '=' after variable.");
-            SyntaxNode value = encExpr();
+            SyntaxNode value = expr();
             return new AssignNode(target, value);
         }
-        return encExpr();
+        return expr();
     }
 
-    // encExpr → "Enc" "(" IDENT "," IDENT ")" ;
-    private SyntaxNode encExpr() throws ParseException {
-        consume(TokenType.ENC, "Expected 'Enc' for encryption expression.");
+    // expr → concatExpr ;
+    //
+    // I keep expr() as a separate method in case I want to add more
+    // precedence levels later.
+    private SyntaxNode expr() throws ParseException {
+        return concatExpr();
+    }
+
+    // concatExpr → cryptoExpr ( "||" cryptoExpr )* ;
+    //
+    // I treat "||" as left-associative:
+    //   a || b || c parses as Concat(Concat(a, b), c)
+    private SyntaxNode concatExpr() throws ParseException {
+        SyntaxNode left = cryptoExpr();
+        while (match(TokenType.CONCAT)) { // token for "||"
+            SyntaxNode right = cryptoExpr();
+            left = new ConcatNode(left, right);
+        }
+        return left;
+    }
+
+    // cryptoExpr → encExpr
+    //            | macExpr
+    //            | signExpr
+    //            | verifyExpr
+    //            | hashExpr
+    //            | IDENT
+    //
+    // This is the base expression layer where I dispatch based on which
+    // crypto keyword appears, or fall back to a bare identifier.
+    private SyntaxNode cryptoExpr() throws ParseException {
+        if (match(TokenType.ENC)) {
+            return encExprAfterKeyword();
+        }
+        if (match(TokenType.MAC)) {
+            return macExprAfterKeyword();
+        }
+        if (match(TokenType.SIGN)) {
+            return signExprAfterKeyword();
+        }
+        if (match(TokenType.VRFY)) {
+            return verifyExprAfterKeyword();
+        }
+        if (match(TokenType.HASH)) { // "H"
+            return hashExprAfterKeyword();
+        }
+
+        if (check(TokenType.IDENTIFIER)) {
+            return identifier("Expected identifier in expression.");
+        }
+
+        throw error(peek(), "Expected expression.");
+    }
+
+    // encExpr → "Enc" "(" expr "," expr ")" ;
+    //
+    // I allow general expressions for key and message, but for now I require
+    // the key to be an identifier so the analyzer can treat it as a simple
+    // key symbol.
+    private SyntaxNode encExprAfterKeyword() throws ParseException {
         consume(TokenType.LPAREN, "Expected '(' after 'Enc'.");
-        IdentifierNode key = identifier("Expected key identifier.");
-        consume(TokenType.COMMA, "Expected ',' between key and message.");
-        IdentifierNode msg = identifier("Expected message identifier.");
+        SyntaxNode keyExpr = expr();
+        consume(TokenType.COMMA, "Expected ',' between key and message inside Enc.");
+        SyntaxNode msgExpr = expr();
         consume(TokenType.RPAREN, "Expected ')' after Enc(...).");
-        return new EncryptExprNode(key, msg);
+
+        if (!(keyExpr instanceof IdentifierNode keyId)) {
+            throw error(previous(), "Encryption key must be an identifier.");
+        }
+        return new EncryptExprNode(keyId, msgExpr);
     }
 
-    // --- helpers ---
+    // macExpr → "Mac" "(" IDENT "," expr ")" ;
+    private SyntaxNode macExprAfterKeyword() throws ParseException {
+        consume(TokenType.LPAREN, "Expected '(' after 'Mac'.");
+        IdentifierNode key = identifier("Expected MAC key identifier.");
+        consume(TokenType.COMMA, "Expected ',' between key and message inside Mac.");
+        SyntaxNode msgExpr = expr();
+        consume(TokenType.RPAREN, "Expected ')' after Mac(...).");
+        return new MacExprNode(key, msgExpr);
+    }
+
+    // hashExpr → "H" "(" expr ")" ;
+    private SyntaxNode hashExprAfterKeyword() throws ParseException {
+        consume(TokenType.LPAREN, "Expected '(' after 'H'.");
+        SyntaxNode inner = expr();
+        consume(TokenType.RPAREN, "Expected ')' after H(...).");
+        return new HashExprNode(inner);
+    }
+
+    // signExpr → "Sign" "(" IDENT "," expr ")" ;
+    private SyntaxNode signExprAfterKeyword() throws ParseException {
+        consume(TokenType.LPAREN, "Expected '(' after 'Sign'.");
+        IdentifierNode sk = identifier("Expected signing key identifier.");
+        consume(TokenType.COMMA, "Expected ',' between signing key and message inside Sign.");
+        SyntaxNode msgExpr = expr();
+        consume(TokenType.RPAREN, "Expected ')' after Sign(...).");
+        return new SignExprNode(sk, msgExpr);
+    }
+
+    // verifyExpr → "Verify" "(" IDENT "," expr "," expr ")" ;
+    private SyntaxNode verifyExprAfterKeyword() throws ParseException {
+        consume(TokenType.LPAREN, "Expected '(' after 'Verify'.");
+        IdentifierNode pk = identifier("Expected public key identifier.");
+        consume(TokenType.COMMA, "Expected ',' after public key in Verify.");
+        SyntaxNode msgExpr = expr();
+        consume(TokenType.COMMA, "Expected ',' after message in Verify.");
+        SyntaxNode sigExpr = expr();
+        consume(TokenType.RPAREN, "Expected ')' after Verify(...).");
+        return new VerifyExprNode(pk, msgExpr, sigExpr);
+    }
+
+    // --------------------------------------------------------------------
+    // Helpers
+    // --------------------------------------------------------------------
 
     private IdentifierNode identifier(String err) throws ParseException {
         Token t = consume(TokenType.IDENTIFIER, err);

@@ -1,29 +1,29 @@
 /*
-*
-* Copyright (C) 2025 Owen Forsyth and Daniel Mead
-*
-* This program is free software: you can redistribute it and/or modify 
-* it under the terms of the GNU General Public License as published by 
-* the Free Software Foundation, either version 3 of the License, or 
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful, 
-* but WITHOUT ANY WARRANTY; without even the implied warranty of 
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License 
-* along with this program. If not, see <https://www.gnu.org/licenses/>.
-*
-*/
+ *
+ * Copyright (C) 2025 Owen Forsyth and Daniel Mead
+ *
+ * This program is free software: you can redistribute it and/or modify 
+ * it under the terms of the GNU General Public License as published by 
+ * the Free Software Foundation, either version 3 of the License, or 
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, 
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * I should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
 
 package com.dynamicduo.proto.lexer;
 
 /**
- * Super small hand-written lexer.
- * - Skips whitespace/newlines.
- * - Recognizes keywords, identifiers, and punctuation.
- * - Produces a stream of Token objects consumed by the parser.
+ * Small hand-written lexer.
+ *
+ * I skip whitespace/newlines, recognize keywords, identifiers, punctuation,
+ * and produce a stream of Token objects for the parser.
  */
 public class Lexer {
     private final String src;
@@ -45,7 +45,7 @@ public class Lexer {
 
         char c = advance();
 
-        // Single-char symbols
+        // Single-char / multi-char symbols
         switch (c) {
             case ':':
                 return new Token(TokenType.COLON, ":", line);
@@ -58,9 +58,18 @@ public class Lexer {
             case ')':
                 return new Token(TokenType.RPAREN, ")", line);
             case '-':
-                if (match('>'))
+                if (match('>')) {
                     return new Token(TokenType.ARROW, "->", line);
-                // fall-through to identifier handling if lone '-'
+                }
+                // lone '-' falls through to default handling
+                break;
+            case '|':
+                // I treat "||" as the concatenation operator.
+                if (match('|')) {
+                    return new Token(TokenType.CONCAT, "||", line);
+                }
+                // single '|' is unexpected; I let it fall through so I can
+                // at least surface something as an identifier-ish token.
                 break;
         }
 
@@ -68,7 +77,8 @@ public class Lexer {
             return identifier(c);
         }
 
-        // Unknown character: treat as IDENTIFIER lexeme so demo doesn't crash
+        // Unknown character: treat as IDENTIFIER lexeme so the parser
+        // can surface an error instead of crashing.
         return new Token(TokenType.IDENTIFIER, String.valueOf(c), line);
     }
 
@@ -92,6 +102,14 @@ public class Lexer {
                 return new Token(TokenType.ENC, text, line);
             case "Dec":
                 return new Token(TokenType.DEC, text, line);
+            case "Mac":
+                return new Token(TokenType.MAC, text, line);
+            case "Sign":
+                return new Token(TokenType.SIGN, text, line);
+            case "Verify":
+                return new Token(TokenType.VRFY, text, line);
+            case "H":
+                return new Token(TokenType.HASH, text, line);
             default:
                 return new Token(TokenType.IDENTIFIER, text, line);
         }
