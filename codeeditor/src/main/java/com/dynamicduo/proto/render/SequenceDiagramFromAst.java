@@ -102,9 +102,12 @@ public final class SequenceDiagramFromAst {
             return a.getTarget().getName() + " = " + labelFor(a.getValue());
         }
         if (body instanceof EncryptExprNode e) {
-            return "Enc(" + e.getKey().getName() + ", " + e.getMessage().label() + ")";
+            return "Enc(" + e.getKey().getName() + ", " + labelFor(e.getMessage()) + ")";
         }
-
-        return body.label(); // generic fallback
+        if (body instanceof IdentifierNode id) {
+            return id.getName();
+        }
+        return body.label();
     }
+
 }
