@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
  * General Public License for more details.
  *
- * I should have received a copy of the GNU General Public License 
+ * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  */
@@ -22,7 +22,7 @@ package com.dynamicduo.proto.lexer;
 /**
  * Small hand-written lexer.
  *
- * I skip whitespace/newlines, recognize keywords, identifiers, punctuation,
+ * skip whitespace/newlines, recognize keywords, identifiers, punctuation,
  * and produce a stream of Token objects for the parser.
  */
 public class Lexer {
@@ -64,11 +64,11 @@ public class Lexer {
                 // lone '-' falls through to default handling
                 break;
             case '|':
-                // I treat "||" as the concatenation operator.
+                // treat "||" as the concatenation operator.
                 if (match('|')) {
                     return new Token(TokenType.CONCAT, "||", line);
                 }
-                // single '|' is unexpected; I let it fall through so I can
+                // single '|' is unexpected; let it fall through so it can
                 // at least surface something as an identifier-ish token.
                 break;
         }

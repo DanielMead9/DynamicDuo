@@ -168,8 +168,8 @@ public final class KnowledgeAnalyzer {
                     String k = parts[0].trim(); // key identifier
                     String m = parts[1].trim(); // message identifier (symbolic name)
 
-                    // If P knows the key and does not yet know the message, P learns the message.
-                    if (terms.contains(k) && !terms.contains(m)) {
+                    // If P knows the key and the plaintext is a bare identifier, P learns it.
+                    if (terms.contains(k) && !terms.contains(m) && isBareIdentifier(m)) {
                         terms.add(m);
                         changed = true;
                     }
@@ -204,108 +204,108 @@ public final class KnowledgeAnalyzer {
     }
 
     /**
-     * collectTerms
+     * Walk a SyntaxNode subtree and extract:
+     *  - identifiers that appear in the clear (lhs of assignments, bare ids, and
+     *    any opaque crypto/concat terms we want to list in the summary)
+     *  - ciphertext terms "Enc(keySym, msgSym)" as opaque units in encrypts
      *
-     * Walks a SyntaxNode subtree and extracts:
-     *   - identifiers that appear in the clear (LHS of assignments, bare identifiers)
-     *   - opaque structured crypto terms (Enc, Mac, H, Sign, Verify, Concat, ...)
-     *
-     * Modeling decisions:
-     *
-     *   - When it see Enc(k, m) or Mac(k, m) or H(m) or Sign(sk, m),
-     *     or Verify(pk, m, sig), or Concat(...),
-     *     I record only an opaque string for that whole term in cryptoTerms.
-     *
-     *   - I do NOT automatically expose identifiers inside these structured
-     *     terms to the adversary. Sending "m1 || 0" is treated as one opaque
-     *     Concat(...) term, not as separate m1 and 0.
-     *
-     *   - Plain IdentifierNodes that are not under crypto are treated as visible
-     *     atoms in the clear and are added to identifiers.
+     * Visibility rules:
+     *  - Bare identifiers: visible in the clear.
+     *  - Assignment "x = expr": the variable x is visible; visibility of expr
+     *    depends on Recursion + node-specific rules.
+     *  - Enc(key, msgExpr): we record only the ciphertext symbol
+     *      Enc(keyName, msgLabel)
+     *    in encrypts; no visibility of msgExpr’s internals.
+     *  - Concat(left, right): treated as a single symbol "(leftLabel || rightLabel)"
+     *    with no automatic visibility of left/right.
+     *  - Mac, Hash, Sign, Verify: treated as opaque symbols, added to identifiers
+     *    so they appear in the knowledge summary but do not enable inference.
      */
     private static void collectTerms(
             SyntaxNode node,
-            Set<String> identifiers,   // identifiers in the clear
-            Set<String> cryptoTerms    // opaque structured terms
-    ) {
+            Set<String> identifiers,
+            Set<String> encrypts) {
+
+        // Bare identifier in the clear.
         if (node instanceof IdentifierNode id) {
-            // A bare identifier (not under crypto) appears in the clear.
             identifiers.add(id.getName());
         }
 
+        // Encryption: Enc(keyExpr, msgExpr)
         else if (node instanceof EncryptExprNode enc) {
             String kName = enc.getKey().getName();
-            // For the message part, I only record the label of the subtree.
-            // If the message is a simple identifier, label() will return its name.
-            // If it is something structured (like a concat), label() will be
-            // something like "Concat" or another descriptive label.
-            String mLabel = enc.getMessage().label();
-            String term = "Enc(" + kName + ", " + mLabel + ")";
-            cryptoTerms.add(term);
+            // The message is a general expression, so we use its label as a symbol.
+            String mSym  = enc.getMessage().label();
+
+            String term = "Enc(" + kName + ", " + mSym + ")";
+            encrypts.add(term);
+
+            // Do NOT recurse into enc.getMessage() for visibility.
+            // Ciphertext is opaque unless the key is known and the decryption
+            // inference rule fires later.
         }
 
+        // Concatenation: left || right
+        else if (node instanceof ConcatNode cat) {
+            String leftLabel  = cat.getLeft().label();
+            String rightLabel = cat.getRight().label();
+            String sym = "(" + leftLabel + " || " + rightLabel + ")";
+
+            // Treat the entire concatenation as an opaque symbol.
+            identifiers.add(sym);
+
+            // Do NOT recurse into left/right; that matches the "opaque blob" model.
+        }
+
+        // MAC: Mac(keyId, msgExpr)
         else if (node instanceof MacExprNode mac) {
-            String kName = mac.getKey().getName();
-            String mLabel = mac.getMessage().label();
-            String term = "Mac(" + kName + ", " + mLabel + ")";
-            cryptoTerms.add(term);
+            String kName   = mac.getKey().getName();
+            String msgSym  = mac.getMessage().label();
+            String sym = "Mac(" + kName + ", " + msgSym + ")";
+
+            // Include the MAC tag as a visible symbol, but no inference is built on it.
+            identifiers.add(sym);
+            // No recursion into msgExpr for visibility.
         }
 
+        // Hash: Hash(expr)
         else if (node instanceof HashExprNode h) {
-            String innerLabel = h.getInner().label();
-            String term = "H(" + innerLabel + ")";
-            cryptoTerms.add(term);
+            String inner = h.getInner().label();
+            String sym = "H(" + inner + ")";
+
+            identifiers.add(sym);
+            // Do not recurse into inner for visibility.
         }
 
+        // Signature: Sign(sk, msgExpr)
         else if (node instanceof SignExprNode s) {
-            String skName = s.getSk().getName();
-            String mLabel = s.getMessage().label();
-            String term = "Sign(" + skName + ", " + mLabel + ")";
-            cryptoTerms.add(term);
+            String skName  = s.getSigningKey().getName();
+            String msgSym  = s.getMessage().label();
+            String sym = "Sign(" + skName + ", " + msgSym + ")";
+
+            identifiers.add(sym);
         }
 
+        // Verify: Verify(pk, msgExpr, sigExpr)
         else if (node instanceof VerifyExprNode v) {
-            String pkName = v.getPk().getName();
-            String term = "Verify(" + pkName + ", ...)";
-            cryptoTerms.add(term);
+            String pkName   = v.getPublicKey().getName();
+            String msgSym   = v.getMessage().label();
+            String sigSym   = v.getSignature().label();
+            String sym = "Verify(" + pkName + ", " + msgSym + ", " + sigSym + ")";
+
+            identifiers.add(sym);
         }
 
-        else if (node instanceof ConcatNode c) {
-            // In this model, I treat concatenation as an opaque bitstring.
-            // I do not automatically reveal the inner identifiers; instead I
-            // just record one structured "Concat(...)" term.
-            String leftLabel  = c.getLeft().label();
-            String rightLabel = c.getRight().label();
-            String term = "Concat(" + leftLabel + ", " + rightLabel + ")";
-            cryptoTerms.add(term);
-
-            // If I ever want to switch back to a fully symbolic model where
-            // concat in the clear exposes its components, I can replace this
-            // block with:
-            //
-            //     collectTerms(c.getLeft(), identifiers, cryptoTerms);
-            //     collectTerms(c.getRight(), identifiers, cryptoTerms);
-            //
-            // For now I keep concat opaque.
-        }
-
+        // Assignment: exposes the LHS variable in the clear,
+        // then applies the visibility rules recursively to the RHS.
         else if (node instanceof AssignNode a) {
-            // Assignment exposes the variable on the left-hand side.
-            // Example: c = Enc(K_AB, M_1 || 0)
-            //
-            // "c" appears in the clear and should be considered known to observers.
             identifiers.add(a.getTarget().getName());
-            // I still recurse into the value so I can collect any opaque
-            // crypto terms (Enc, Mac, Concat, etc.), but that recursion
-            // does NOT leak identifiers from inside those structures.
-            collectTerms(a.getValue(), identifiers, cryptoTerms);
+            collectTerms(a.getValue(), identifiers, encrypts);
         }
-
-        // If I introduce more node types later, I can extend this method with
-        // more "else if" branches to define how they contribute to visibility.
     }
 
-    public static String analyzeToString(ProtocolNode proto) {
+
+        public static String analyzeToString(ProtocolNode proto) {
         Map<String, Set<String>> knows = new LinkedHashMap<>();
         Map<String, Set<String>> encryptTerms = new LinkedHashMap<>();
 
@@ -325,14 +325,23 @@ public final class KnowledgeAnalyzer {
             String recv   = msg.getReceiver().getName();
             List<String> observers = List.of(sender, recv, ADVERSARY);
 
-            Set<String> ids = new LinkedHashSet<>();
-            Set<String> encs = new LinkedHashSet<>();
-            collectTerms(msg.getBody(), ids, encs);
+            // 1) What is visible on the wire (your existing visibility rules)
+            Set<String> visibleIds = new LinkedHashSet<>();
+            Set<String> encs       = new LinkedHashSet<>();
+            collectTerms(msg.getBody(), visibleIds, encs);
 
+            // 2) What the sender must know to BUILD this message (keys, nonces, etc.)
+            Set<String> builtIds = new LinkedHashSet<>();
+            collectAuthorIds(msg.getBody(), builtIds);
+
+            // Observers learn only what is visible on the wire
             for (String p : observers) {
-                knows.get(p).addAll(ids);
+                knows.get(p).addAll(visibleIds);
                 encryptTerms.get(p).addAll(encs);
             }
+
+            // Sender also knows all identifiers used to construct the message
+            knows.get(sender).addAll(builtIds);
         }
 
         // Apply decryption rule
@@ -355,7 +364,7 @@ public final class KnowledgeAnalyzer {
                     String k = parts[0].trim();
                     String m = parts[1].trim();
 
-                    if (terms.contains(k) && !terms.contains(m)) {
+                    if (terms.contains(k) && !terms.contains(m) && isBareIdentifier(m)) {
                         terms.add(m);
                         changed = true;
                     }
@@ -364,30 +373,134 @@ public final class KnowledgeAnalyzer {
 
         } while (changed);
 
-        // Build output string
+        // Build pretty, categorized output
         StringBuilder sb = new StringBuilder();
-        sb.append("=== Knowledge Summary ===\n");
+        sb.append("=== Knowledge Summary ===\n\n");
 
-        for (var e : knows.entrySet()) {
-            sb.append(e.getKey()).append(" knows: ").append(e.getValue()).append("\n");
+        for (String principal : knows.keySet()) {
+            sb.append(principal).append("\n");
+
+            Set<String> atomic     = new LinkedHashSet<>();
+            Set<String> structured = new LinkedHashSet<>();
+
+            // Split into atomic vs structured
+            for (String term : knows.get(principal)) {
+                if (isStructuredTerm(term)) {
+                    structured.add(term);
+                } else {
+                    atomic.add(term);
+                }
+            }
+
+            // Enc(...) terms are only in encryptTerms, so include them as structured too
+            structured.addAll(encryptTerms.get(principal));
+
+            sb.append("  Atomic terms:\n");
+            if (atomic.isEmpty()) {
+                sb.append("    (none)\n");
+            } else {
+                for (String t : atomic) {
+                    sb.append("    - ").append(t).append("\n");
+                }
+            }
+
+            sb.append("  Structured terms:\n");
+            if (structured.isEmpty()) {
+                sb.append("    (none)\n");
+            } else {
+                for (String t : structured) {
+                    sb.append("    - ").append(t).append("\n");
+                }
+            }
+
+            sb.append("\n");
         }
 
+        // Catastrophic leak summary
         Set<String> adv = knows.get(ADVERSARY);
         Set<String> catastrophic = new LinkedHashSet<>();
 
         for (String t : adv) {
-            if (t.startsWith("K_") || t.startsWith("M_"))
+            if (t.startsWith("K_") || t.startsWith("M_")) {
                 catastrophic.add(t);
+            }
         }
 
         if (!catastrophic.isEmpty()) {
-            sb.append("*** Catastrophic for protocol: adversary learned ")
-            .append(catastrophic).append(" ***\n");
+            sb.append("*** Potentially catastrophic: adversary learned the following key/plaintext symbols:\n");
+            for (String t : catastrophic) {
+                sb.append("  - ").append(t).append("\n");
+            }
         } else {
             sb.append("No catastrophic leaks under this simple model.\n");
         }
 
         return sb.toString();
+    }
+
+    /**
+     * Heuristic: treat anything with parentheses or "||" as a structured term
+     * (ciphertext, MAC, signature, hash, concat, etc.), and bare symbols
+     * like K_AB, M_1, N_A as atomic.
+     */
+    private static boolean isStructuredTerm(String term) {
+        return term.contains("(") || term.contains("||");
+    }
+
+    /**
+     * Collect identifiers that a sender must know in order to BUILD the message.
+     * Unlike collectTerms, this ignores visibility rules and recurses into
+     * the internals of crypto/concat expressions.
+     */
+    private static void collectAuthorIds(SyntaxNode node, Set<String> out) {
+        if (node instanceof IdentifierNode id) {
+            out.add(id.getName());
+        } else if (node instanceof EncryptExprNode enc) {
+            collectAuthorIds(enc.getKey(), out);
+            collectAuthorIds(enc.getMessage(), out);
+        } else if (node instanceof ConcatNode cat) {
+            collectAuthorIds(cat.getLeft(), out);
+            collectAuthorIds(cat.getRight(), out);
+        } else if (node instanceof MacExprNode mac) {
+            collectAuthorIds(mac.getKey(), out);
+            collectAuthorIds(mac.getMessage(), out);
+        } else if (node instanceof HashExprNode h) {
+            collectAuthorIds(h.getInner(), out);
+        } else if (node instanceof SignExprNode s) {
+            collectAuthorIds(s.getSigningKey(), out);
+            collectAuthorIds(s.getMessage(), out);
+        } else if (node instanceof VerifyExprNode v) {
+            collectAuthorIds(v.getPublicKey(), out);
+            collectAuthorIds(v.getMessage(), out);
+            collectAuthorIds(v.getSignature(), out);
+        } else if (node instanceof AssignNode a) {
+            // The sender obviously knows the variable they assign to and
+            // all identifiers used in the assigned expression.
+            collectAuthorIds(a.getTarget(), out);
+            collectAuthorIds(a.getValue(), out);
+        }
+        // For other node types, nothing to do
+    }
+
+        /**
+     * Treat as "bare identifier" only simple symbols like K_AB, M_1, N_A, c, ack.
+     * We exclude anything with non [A-Za-z0-9_] characters, and also the internal
+     * "Concat" label which comes from expression labels, not from user-level ids.
+     */
+    private static boolean isBareIdentifier(String term) {
+        if ("Concat".equals(term)) {
+            return false; // internal label for concatenations; not a user-visible atom
+        }
+        if (term.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < term.length(); i++) {
+            char c = term.charAt(i);
+            if (!(Character.isLetterOrDigit(c) || c == '_')) {
+                return false;
+            }
+        }
+        return true;
     }
 
 }
