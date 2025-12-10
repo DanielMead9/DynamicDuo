@@ -86,122 +86,12 @@ public final class KnowledgeAnalyzer {
      *     KnowledgeAnalyzer.analyzeAndPrint(tree);
      *
      * This prints the knowledge summary to stdout.
-     * Later I can route this into the GUI's Analysis tab.
+     * The heavy lifting is done in analyzeToString().
      */
     public static void analyzeAndPrint(ProtocolNode proto) {
-        // knows[P] = set of atomic terms that principal P knows
-        Map<String, Set<String>> knows = new LinkedHashMap<>();
-
-        // 1) Initialize knowledge map for all declared roles in the protocol.
-        for (IdentifierNode id : proto.getRoles().getRoles()) {
-            // LinkedHashSet keeps insertion order so output is stable and readable.
-            knows.put(id.getName(), new LinkedHashSet<>());
-        }
-
-        // Add the implicit passive adversary.
-        knows.put(ADVERSARY, new LinkedHashSet<>());
-
-        // cryptoTerms[P] = set of opaque structured terms P has seen
-        // e.g., "Enc(K_AB, M_1)", "Mac(K_AB, c)", "Concat(m1, 0)", ...
-        Map<String, Set<String>> cryptoTerms = new LinkedHashMap<>();
-        for (String p : knows.keySet()) {
-            cryptoTerms.put(p, new LinkedHashSet<>());
-        }
-
-        // 2) Process each message in order.
-        //
-        // Each MessageSendNode represents:
-        //   sender -> receiver : <body>
-        //
-        // Observers:
-        //   - sender
-        //   - receiver
-        //   - adversary (sees everything on the wire)
-        for (MessageSendNode msg : proto.getMessages()) {
-            String sender = msg.getSender().getName();
-            String recv   = msg.getReceiver().getName();
-
-            List<String> observers = List.of(sender, recv, ADVERSARY);
-
-            // Collect identifiers in the clear and opaque crypto terms
-            // from the message body.
-            Set<String> ids  = new LinkedHashSet<>();
-            Set<String> ops  = new LinkedHashSet<>();
-            collectTerms(msg.getBody(), ids, ops);
-
-            // Everything visible in this message is learned by each observer.
-            for (String p : observers) {
-                knows.get(p).addAll(ids);
-                cryptoTerms.get(p).addAll(ops);
-            }
-        }
-
-        // 3) Apply the decryption inference rule until no new information appears.
-        //
-        // Rule:
-        //   If P has an opaque term "Enc(k, m)" in cryptoTerms[P]
-        //   AND P knows k in knows[P]
-        //   THEN add m to knows[P] as a new atomic term.
-        //
-        // I do NOT open concatenations or other structures here; I just
-        // propagate symbolic identifiers.
-        boolean changed;
-        do {
-            changed = false;
-
-            for (String p : knows.keySet()) {
-                Set<String> terms = knows.get(p);        // plain knowledge of P
-                Set<String> ops   = cryptoTerms.get(p);  // opaque structured terms P has seen
-
-                for (String op : ops) {
-                    // Expect encryption terms in the form "Enc(k, m)".
-                    if (!op.startsWith("Enc(") || !op.endsWith(")")) {
-                        continue; // skip non-encryption structured terms here
-                    }
-
-                    String inside = op.substring("Enc(".length(), op.length() - 1);
-                    // Split "k, m" into ["k", "m"]
-                    String[] parts = inside.split(",", 2);
-                    if (parts.length != 2)
-                        continue;
-
-                    String k = parts[0].trim(); // key identifier
-                    String m = parts[1].trim(); // message identifier (symbolic name)
-
-                    // If P knows the key and the plaintext is a bare identifier, P learns it.
-                    if (terms.contains(k) && !terms.contains(m) && isBareIdentifier(m)) {
-                        terms.add(m);
-                        changed = true;
-                    }
-                }
-            }
-        } while (changed); // keep looping while new info is being added
-
-        // 4) Print knowledge summary.
-        System.out.println("=== Knowledge Summary ===");
-        for (Map.Entry<String, Set<String>> e : knows.entrySet()) {
-            System.out.println(e.getKey() + " knows: " + e.getValue());
-        }
-
-        // 5) Identify "catastrophic" leaks:
-        //
-        // If the adversary learns any term that looks like a key (K_*)
-        // or a plaintext message (M_*), I flag it as catastrophic.
-        Set<String> advTerms = knows.get(ADVERSARY);
-        Set<String> catastrophic = new LinkedHashSet<>();
-        for (String t : advTerms) {
-            if (t.startsWith("K_") || t.startsWith("M_")) {
-                catastrophic.add(t);
-            }
-        }
-
-        if (!catastrophic.isEmpty()) {
-            System.out.println("*** Catastrophic for protocol: adversary learned "
-                    + catastrophic + " ***");
-        } else {
-            System.out.println("No catastrophic leaks under this simple model.");
-        }
+        System.out.print(analyzeToString(proto));
     }
+
 
     /**
      * Walk a SyntaxNode subtree and extract:
@@ -305,32 +195,73 @@ public final class KnowledgeAnalyzer {
     }
 
 
-        public static String analyzeToString(ProtocolNode proto) {
+    /**
+     * Main knowledge analysis function.
+     *
+     * Given a ProtocolNode AST, returns a pretty-printed string
+     * summarizing what each principal (and the adversary) knows
+     * after one run of the protocol.
+     */
+    public static String analyzeToString(ProtocolNode proto) {
+
         Map<String, Set<String>> knows = new LinkedHashMap<>();
         Map<String, Set<String>> encryptTerms = new LinkedHashMap<>();
 
-        // Initialization (same logic as analyzeAndPrint)
+        // 1) Initialize knowledge map for all declared roles in the protocol.
         for (IdentifierNode id : proto.getRoles().getRoles()) {
             knows.put(id.getName(), new LinkedHashSet<>());
         }
+        // Add the implicit passive adversary.
         knows.put(ADVERSARY, new LinkedHashSet<>());
 
+        // 2) Seed knowledge from key declarations
+        for (KeyDeclNode kd : proto.getKeyDecls()) {
+            String keyName = kd.getKeyName();
+            switch (kd.getKind()) {
+                case SHARED:
+                    // shared key known only to owners
+                    for (String owner : kd.getOwners()) {
+                        if (knows.containsKey(owner)) {
+                            knows.get(owner).add(keyName);
+                        }
+                    }
+                    break;
+
+                case PUBLIC:
+                    // public key known to all principals (roles + adversary)
+                    for (String principal : knows.keySet()) {
+                        knows.get(principal).add(keyName);
+                    }
+                    break;
+
+                case PRIVATE:
+                    // private key known only to owner(s)
+                    for (String owner : kd.getOwners()) {
+                        if (knows.containsKey(owner)) {
+                            knows.get(owner).add(keyName);
+                        }
+                    }
+                    break;
+            }
+        }
+
+        // 3) Initialize encryptTerms map (opaque Enc(...) terms per principal)
         for (String p : knows.keySet()) {
             encryptTerms.put(p, new LinkedHashSet<>());
         }
 
-        // Collect terms from messages
+        // 4) Collect terms from messages
         for (MessageSendNode msg : proto.getMessages()) {
             String sender = msg.getSender().getName();
             String recv   = msg.getReceiver().getName();
             List<String> observers = List.of(sender, recv, ADVERSARY);
 
-            // 1) What is visible on the wire (your existing visibility rules)
+            // 4.1) What is visible on the wire (existing visibility rules)
             Set<String> visibleIds = new LinkedHashSet<>();
             Set<String> encs       = new LinkedHashSet<>();
             collectTerms(msg.getBody(), visibleIds, encs);
 
-            // 2) What the sender must know to BUILD this message (keys, nonces, etc.)
+            // 4.2) What the sender must know to BUILD this message (keys, nonces, etc.)
             Set<String> builtIds = new LinkedHashSet<>();
             collectAuthorIds(msg.getBody(), builtIds);
 
@@ -341,10 +272,13 @@ public final class KnowledgeAnalyzer {
             }
 
             // Sender also knows all identifiers used to construct the message
-            knows.get(sender).addAll(builtIds);
+            if (knows.containsKey(sender)) {
+                knows.get(sender).addAll(builtIds);
+            }
         }
 
-        // Apply decryption rule
+        // 5) Apply decryption rule until no new knowledge is added.
+        //    If P has Enc(k, m) and knows k, and m is a bare identifier, then P learns m.
         boolean changed;
         do {
             changed = false;
@@ -364,6 +298,7 @@ public final class KnowledgeAnalyzer {
                     String k = parts[0].trim();
                     String m = parts[1].trim();
 
+                    // Only learn *bare* identifiers as plaintext from decryption
                     if (terms.contains(k) && !terms.contains(m) && isBareIdentifier(m)) {
                         terms.add(m);
                         changed = true;
@@ -373,7 +308,7 @@ public final class KnowledgeAnalyzer {
 
         } while (changed);
 
-        // Build pretty, categorized output
+        // 6) Build pretty, categorized output
         StringBuilder sb = new StringBuilder();
         sb.append("=== Knowledge Summary ===\n\n");
 
@@ -383,7 +318,7 @@ public final class KnowledgeAnalyzer {
             Set<String> atomic     = new LinkedHashSet<>();
             Set<String> structured = new LinkedHashSet<>();
 
-            // Split into atomic vs structured
+            // Split into atomic vs structured based on simple heuristic
             for (String term : knows.get(principal)) {
                 if (isStructuredTerm(term)) {
                     structured.add(term);
@@ -392,7 +327,7 @@ public final class KnowledgeAnalyzer {
                 }
             }
 
-            // Enc(...) terms are only in encryptTerms, so include them as structured too
+            // Enc(...) terms live in encryptTerms; include them as structured, too
             structured.addAll(encryptTerms.get(principal));
 
             sb.append("  Atomic terms:\n");
@@ -416,7 +351,7 @@ public final class KnowledgeAnalyzer {
             sb.append("\n");
         }
 
-        // Catastrophic leak summary
+        // 7) Catastrophic leak summary (still using K_*/M_* heuristic for now)
         Set<String> adv = knows.get(ADVERSARY);
         Set<String> catastrophic = new LinkedHashSet<>();
 
@@ -437,6 +372,7 @@ public final class KnowledgeAnalyzer {
 
         return sb.toString();
     }
+
 
     /**
      * Heuristic: treat anything with parentheses or "||" as a structured term

@@ -34,6 +34,13 @@ public enum TokenType {
     VRFY,  // verify signature
     HASH,  // cryptographic hash
 
+    SHARED, // shared key declaration
+    PUBLIC,
+    PRIVATE,
+    KEY,
+    ASSERT,
+    SECRET, 
+
     // Symbols
     ARROW,  // ->
     COLON,  // :

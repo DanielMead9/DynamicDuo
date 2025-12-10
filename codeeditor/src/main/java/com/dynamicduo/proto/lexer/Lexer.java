@@ -98,6 +98,18 @@ public class Lexer {
         switch (text) {
             case "roles":
                 return new Token(TokenType.ROLES, text, line);
+            case "shared":  
+                return new Token(TokenType.SHARED, text, line);
+            case "public":  
+                return new Token(TokenType.PUBLIC, text, line);
+            case "private":
+                return new Token(TokenType.PRIVATE, text, line);
+            case "key":     
+                return new Token(TokenType.KEY, text, line);
+            case "assert":  
+                return new Token(TokenType.ASSERT, text, line);
+            case "secret":  
+                return new Token(TokenType.SECRET, text, line);
             case "Enc":
                 return new Token(TokenType.ENC, text, line);
             case "Dec":
@@ -108,7 +120,7 @@ public class Lexer {
                 return new Token(TokenType.SIGN, text, line);
             case "Verify":
                 return new Token(TokenType.VRFY, text, line);
-            case "H":
+            case "Hash":
                 return new Token(TokenType.HASH, text, line);
             default:
                 return new Token(TokenType.IDENTIFIER, text, line);

@@ -69,15 +69,32 @@ public class ProtocolParser {
 
     /** Entry point: parse a ProtocolNode or throw ParseException on error. */
     public ProtocolNode parse() throws ParseException {
+        // 1) roles: Alice, Bob, Server
         RoleDeclNode roles = rolesDecl();
         ProtocolNode proto = new ProtocolNode(roles);
 
-        while (peek().getType() != TokenType.EOF) {
-            MessageSendNode msg = message();
-            proto.addMessage(msg);
+        // 2) zero or more key declarations
+        //    shared key K_AB: Alice, Bob
+        //    public key pkA: Alice
+        //    private key skA: Alice
+        while (check(TokenType.SHARED) || check(TokenType.PUBLIC) || check(TokenType.PRIVATE)) {
+            if (match(TokenType.SHARED)) {
+                proto.addKeyDecl(sharedKeyDecl());
+            } else if (match(TokenType.PUBLIC)) {
+                proto.addKeyDecl(publicKeyDecl());
+            } else if (match(TokenType.PRIVATE)) {
+                proto.addKeyDecl(privateKeyDecl());
+            }
         }
-        return proto;
+
+    // 3) messages
+    while (peek().getType() != TokenType.EOF) {
+        MessageSendNode msg = message();
+        proto.addMessage(msg);
     }
+    return proto;
+}
+
 
     // --------------------------------------------------------------------
     // Top-level pieces
@@ -236,6 +253,53 @@ public class ProtocolParser {
         consume(TokenType.RPAREN, "Expected ')' after Verify(...).");
         return new VerifyExprNode(pk, msgExpr, sigExpr);
     }
+
+    // sharedKeyDecl → "shared" "key" IDENTIFIER ":" idList ;
+    private KeyDeclNode sharedKeyDecl() throws ParseException {
+        // we have already consumed 'shared'
+        consume(TokenType.KEY, "Expected 'key' after 'shared'.");
+        Token keyIdent = consume(TokenType.IDENTIFIER, "Expected key name after 'shared key'.");
+        consume(TokenType.COLON, "Expected ':' after shared key name.");
+        List<String> owners = idList();
+        return new KeyDeclNode(KeyKind.SHARED, keyIdent.getLexeme(), owners);
+    }
+
+    // publicKeyDecl → "public" "key" IDENTIFIER ":" IDENTIFIER ;
+    private KeyDeclNode publicKeyDecl() throws ParseException {
+        // we have already consumed 'public'
+        consume(TokenType.KEY, "Expected 'key' after 'public'.");
+        Token keyIdent = consume(TokenType.IDENTIFIER, "Expected key name after 'public key'.");
+        consume(TokenType.COLON, "Expected ':' after public key name.");
+        Token ownerIdent = consume(TokenType.IDENTIFIER, "Expected owner role after ':'.");
+        List<String> owners = new ArrayList<>();
+        owners.add(ownerIdent.getLexeme());
+        return new KeyDeclNode(KeyKind.PUBLIC, keyIdent.getLexeme(), owners);
+    }
+
+    // privateKeyDecl → "private" "key" IDENTIFIER ":" IDENTIFIER ;
+    private KeyDeclNode privateKeyDecl() throws ParseException {
+        // we have already consumed 'private'
+        consume(TokenType.KEY, "Expected 'key' after 'private'.");
+        Token keyIdent = consume(TokenType.IDENTIFIER, "Expected key name after 'private key'.");
+        consume(TokenType.COLON, "Expected ':' after private key name.");
+        Token ownerIdent = consume(TokenType.IDENTIFIER, "Expected owner role after ':'.");
+        List<String> owners = new ArrayList<>();
+        owners.add(ownerIdent.getLexeme());
+        return new KeyDeclNode(KeyKind.PRIVATE, keyIdent.getLexeme(), owners);
+    }
+
+    // idList → IDENTIFIER ( "," IDENTIFIER )*
+    private List<String> idList() throws ParseException {
+        List<String> ids = new ArrayList<>();
+        Token first = consume(TokenType.IDENTIFIER, "Expected identifier.");
+        ids.add(first.getLexeme());
+        while (match(TokenType.COMMA)) {
+            Token t = consume(TokenType.IDENTIFIER, "Expected identifier after ','.");
+            ids.add(t.getLexeme());
+        }
+        return ids;
+    }
+
 
     // --------------------------------------------------------------------
     // Helpers
