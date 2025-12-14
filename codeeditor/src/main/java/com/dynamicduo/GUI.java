@@ -46,6 +46,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 
 import com.dynamicduo.proto.analyzer.KnowledgeAnalyzer;
+import com.dynamicduo.proto.codegen.JavaCodeGenerator;
+
 
 
 public class GUI extends JFrame implements KeyListener {
@@ -65,6 +67,8 @@ public class GUI extends JFrame implements KeyListener {
 
     private Analysis analysis;
     private String analysisStr, svgStr;
+
+    private ProtocolNode lastProtocol; 
 
     private boolean executed = false, dark = false;
     private JLabel label = new JLabel();
@@ -379,6 +383,8 @@ public class GUI extends JFrame implements KeyListener {
                 System.out.println("=== AST ===");
                 System.out.println(tree.pretty());
 
+                lastProtocol = tree;  // remember the AST for Java code generation
+
                 // Generate SVG for the SVG tab
                 svgStr = SequenceDiagramFromAst.renderTwoParty(tree);
 
@@ -502,47 +508,37 @@ public class GUI extends JFrame implements KeyListener {
 
             }
             case "java" -> {
-                headingArea.setText("Java Code \n(This is the starter java code)");
+                headingArea.setText("Java Code \n(Generated starter code from protocol)");
                 highlightActiveMode(javaBtn);
-                if (executed) {
-                    codeArea.setText("");
-                    InputStream in = getClass().getResourceAsStream("/StarterCode.txt");
-                    File file = null;
 
+                if (executed && lastProtocol != null) {
                     try {
-                        file = File.createTempFile("StarterCode", ".txt");
-                        file.deleteOnExit();
-                        FileOutputStream out = new FileOutputStream(file);
-                        in.transferTo(out);
-                    } catch (IOException fe) {
-                        fe.printStackTrace();
-                    }
+                        String javaCode = JavaCodeGenerator.fromProtocol(lastProtocol);
+                        codeArea.setText(javaCode);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        codeArea.setText("""
+                            Error generating starter Java code from protocol.
 
-                    try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            codeArea.append(line + "\n");
-                        }
-                    } catch (IOException fstart) {
-                        fstart.printStackTrace();
-                        JOptionPane.showMessageDialog(codeArea, "Error reading file: " + fstart.getMessage(),
-                                "File Error",
-                                JOptionPane.ERROR_MESSAGE);
+                            Details:
+                            """ + ex.getMessage());
                     }
                 } else {
                     codeArea.setText("No code available. Please run the message first or check for errors.");
                 }
-                codeArea.setEditable(false);
+
+                codeArea.setEditable(false);      // keep read-only for now
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
+
                 setUpCodeScroll();
                 setCenterComponent(splitPane);
                 zoom(splitPane);
                 splitPane.addKeyListener(this);
                 splitPane.setFocusable(true);
                 splitPane.requestFocusInWindow();
-
             }
+
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
                 if (executed) {
