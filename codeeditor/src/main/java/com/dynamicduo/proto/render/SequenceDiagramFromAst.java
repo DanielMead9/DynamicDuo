@@ -20,7 +20,11 @@
 package com.dynamicduo.proto.render;
 
 import com.dynamicduo.proto.ast.*;
+import com.dynamicduo.proto.render.SVG;
 
+import guru.nidi.graphviz.model.*;
+import static guru.nidi.graphviz.model.Factory.*;
+import guru.nidi.graphviz.attribute.*;
 import guru.nidi.graphviz.engine.Format;
 import guru.nidi.graphviz.engine.Graphviz;
 

@@ -208,6 +208,7 @@ public class GUI extends JFrame implements KeyListener {
                 }
                 JFileChooser fileChooser = new JFileChooser();
                 fileChooser.setDialogTitle("Save Graph as SVG");
+                fileChooser.setCurrentDirectory(getDocumentsDirectory());
                 fileChooser.setSelectedFile(new File("graph.svg"));
 
                 int option = fileChooser.showSaveDialog(this);
@@ -228,23 +229,11 @@ public class GUI extends JFrame implements KeyListener {
                         sf.printStackTrace();
                     }
 
-                    /*
-                     * try {
-                     * // Render and save SVG file
-                     * Graphviz.fromGraph(svg.getGraph())
-                     * .render(Format.SVG)
-                     * .toFile(file);
-                     * 
-                     * JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
-                     * } catch (IOException ex) {
-                     * JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
-                     * ex.printStackTrace();
-                     * }
-                     */
                 }
 
             } else { // Saving from any other file
                 JFileChooser fileChooser = new JFileChooser();
+                fileChooser.setCurrentDirectory(getDocumentsDirectory());
                 fileChooser.setSelectedFile(new File("untitled" + ext));
                 int option = fileChooser.showSaveDialog(this);
                 if (option == JFileChooser.APPROVE_OPTION) {
@@ -404,8 +393,6 @@ public class GUI extends JFrame implements KeyListener {
                 switchMode("svg");
 
             }
-
-            JOptionPane.showMessageDialog(this, "Run Button pressed");
 
         });
 
@@ -712,6 +699,15 @@ public class GUI extends JFrame implements KeyListener {
             default -> splitPane3;
         };
         ext.requestFocusInWindow();
+    }
+
+    private File getDocumentsDirectory() {
+        File documents = new File(System.getProperty("user.home"), "Documents");
+        if (documents.exists()) {
+            return documents;
+        }
+        // Fallback if Documents doesn't exist
+        return new File(System.getProperty("user.home"));
     }
 
 }
