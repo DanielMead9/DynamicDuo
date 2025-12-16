@@ -1,202 +1,190 @@
-# Message Flow Language (MFL) — Syntax v0.1
+# Message Flow Language (MFL v1.0)
+## Dynamic Duo — Merrimack College CSC Capstone
+### Message Flow Language (MFL) Specification
 
-A tiny, student friendly language for describing security message flows and checking simple secrecy claims.
-Files use the .flow extension.
+MFL is a small domain-specific language for describing cryptographic message-passing protocols, generating:
 
-##  Quick start
-// Declarations
-principal Alice, Bob;
-secretkey kAB;
-message m;
+* An AST
 
-// Flow
-Alice -> Bob : Enc(kAB, m);
+* A sequence diagram
 
-// Checks
-assert secret(kAB);
-assert secret(m);
+* Starter Java code
 
+* Security analysis (knowledge flow + secrecy assertions)
 
-Run the tool to get:
+* This document describes:
 
-an SVG diagram of the flow
+* All valid syntactic constructs
 
-pass/fail results for the assert secret(…) checks
+* The formal grammar
 
-An eavesdropping adversary is always assumed (you don’t declare it).
+* Examples of complete protocols
 
-## File structure
+1. Overall Structure
 
-A .flow file is a sequence of declarations followed by steps:
+A protocol file consists of four optional sections (order recommended but not required):
 
-Declarations (what exists):
+roles:
+  Alice, Bob
 
-principal Alice, Bob;
+keys:
+  shared K_AB for Alice, Bob
+  public pk_Alice for Alice
+  private sk_Alice for Alice
 
-secretkey kAB;
+assert:
+  secret M_1 for Alice, Bob
+  secret K_AB
 
-publickey pkA;
+messages:
+  Alice -> Bob: c = Enc(K_AB, M_1)
+  Bob   -> Alice: t = Mac(K_AB, c)
 
-privatekey skA;
+2. Roles Section
+roles:
+  Alice, Bob, Server
 
-message m1, m2;
 
-cert certA(pkA); (optional: mark a public key as certified)
+## Defines the principals that may send or receive messages.
 
-Steps (what happens):
+3. Keys Section
 
-Send: Alice -> Bob : Enc(kAB, m1, m2);
+## Define keys and who possesses them.
 
-Assert secrecy: assert secret(kAB);
+3.1 Shared Symmetric Keys
+shared K_AB for Alice, Bob
 
-Comments start with // and run to end of line.
-Each statement ends with ;.
+3.2 Public Key Pairs
+public  pk_Alice  for Alice
+private sk_Alice  for Alice
 
-## Declarations
-principal Alice, Bob;
-secretkey kAB, kAS;
-publickey  pkA;
-privatekey skA;
-message    m1, m2;
-cert certA(pkA);
+3.3 Syntax Summary
+shared IDENT for identList
+public IDENT for IDENT
+private IDENT for IDENT
 
-## Steps
-### 4.1 Send
-<sender> -> <recipient> : <payload> ;
+## 4. Assertions Section
 
+## Assertions declare terms that must remain secret.
 
-Examples:
+4.1 Basic secrecy
+secret M_1
 
-Alice -> Bob : m1;                     // sends m1 in the clear
-Alice -> Bob : Enc(kAB, m1 || m2);      // encryption with concatenated (combined) messages
-Bob   -> Alice : Sig(skA, m1);         // digital signature
-Bob   -> Alice : Mac(kAB, m2);         // MAC
 
-### 4.2 Assert secrecy
-assert secret(<name>) ;
+Means: adversary must not learn M_1.
 
+4.2 Restricted secrecy
+secret M_1 for Alice, Bob
 
-Examples:
 
-assert secret(kAB);
-assert secret(m1);
+Means: only Alice + Bob may know M_1.
 
-## Payloads (simplified)
+5. Messages Section
 
-In a send, the payload can be:
+Each message:
 
-a single name: m
+Sender -> Receiver : statement
 
-a call: Enc(k, m) or Sig(sk, m)
 
-multiple items ( double vertical lines = concatenation): Enc(k, m1 || m2 || m3 )
+Example:
 
-## Built-in primitives (v0.1)
+Alice -> Bob: c = Enc(K_AB, M_1)
 
-Enc(key, items...) — symmetric encryption
+6. Expressions and Crypto Primitives
+6.1 Identifiers
+K_AB
+M_1
+nonceA
+pk_B
 
-Mac(key, items...) — message authentication code
+6.2 Concatenation
+m1 || m2
 
-Sig(sk, items...) — digital signature
+6.3 Encryption
+Enc(key, message)
 
-Hash(items...) — cryptographic hash
+6.4 MAC Tag
+Mac(key, message)
 
-## Adversary model (informal)
+6.5 Digital Signatures
+Sign(sk, message)
+Verify(pk, message, sig)
 
-Adversary always sees all messages (but not information hidden behind encryption)
+6.6 Hash Function
+H(message)
 
-Plaintext items leak immediately.
+6.7 Assignment
+c = Enc(K_AB, M_1)
+t = Mac(K_AB, c)
+sig = Sign(sk_Alice, M_1 || nonce)
 
-Enc(k, …) hides contents unless k is known.
+7. Formal Grammar (EBNF)
 
-If k leaks later, all Enc(k, …) become readable.
+((You may include this exact version in your repo.))
 
-MAC/Signature don’t reveal the key; their arguments are visible unless encrypted.
+protocol       ::= rolesDecl keysDecl? assertDecl? messagesDecl
 
-Hash outputs are public.
+rolesDecl      ::= "roles" ":" identList
 
-8) Examples
-8.1 Safe
-principal Alice, Bob;
-secretkey k; message m;
+keysDecl       ::= "keys" ":" keyLine+
+keyLine        ::= "shared" IDENT "for" identList
+                 | "public" IDENT "for" IDENT
+                 | "private" IDENT "for" IDENT
 
-Alice -> Bob : Enc(k, m);
+assertDecl     ::= "assert" ":" assertLine+
+assertLine     ::= "secret" IDENT ("for" identList)?
 
-assert secret(k);   // PASS
-assert secret(m);   // PASS
+messagesDecl   ::= "messages" ":" message+
+message        ::= IDENT "->" IDENT ":" stmt
 
-8.2 Leak
-principal Alice, Bob;
-secretkey k; message m;
+stmt           ::= IDENT "=" expr | expr
 
-Alice -> Bob : Enc(k, m), k;   // k sent in clear
+expr           ::= concatExpr
 
-assert secret(k);   // FAIL
-assert secret(m);   // FAIL
+concatExpr     ::= cryptoExpr ( "||" cryptoExpr )*
+cryptoExpr     ::= encExpr
+                 | macExpr
+                 | signExpr
+                 | verifyExpr
+                 | hashExpr
+                 | IDENT
 
-9) Keywords & symbols
+encExpr        ::= "Enc" "(" expr "," expr ")"
+macExpr        ::= "Mac" "(" expr "," expr ")"
+signExpr       ::= "Sign" "(" IDENT "," expr ")"
+verifyExpr     ::= "Verify" "(" IDENT "," expr "," expr ")"
+hashExpr       ::= "H" "(" expr ")"
 
-Keywords: principal, secretkey, publickey, privatekey, message, cert, assert, secret
+identList      ::= IDENT ("," IDENT)*
 
-Symbols: -> : , ( ) ;
+8. Examples
+Example A — Symmetric Key Encryption
+roles: Alice, Bob
 
-Identifiers: [A-Za-z_][A-Za-z0-9_]*, case-sensitive
+keys:
+  shared K_AB for Alice, Bob
 
-Comments: //
+assert:
+  secret M_1 for Alice, Bob
 
-10) Errors (examples)
+messages:
+  Alice -> Bob: c = Enc(K_AB, M_1)
+  Bob   -> Alice: ack = Mac(K_AB, c)
 
-line 7: expected ';' after declaration
+Example B — Public Key Challenge–Response
+roles: Alice, Bob
 
-line 12: 'kBA' not declared (did you mean 'kAB'?)
+keys:
+  public  pk_Alice for Alice
+  private sk_Alice for Alice
+  public  pk_Bob   for Bob
+  private sk_Bob   for Bob
 
-line 9: expected 'X -> Y : expr;'
+assert:
+  secret nonceA for Alice
+  secret nonceB
 
-11) Diagram rules
-
-Principals → boxes
-
-Adversary (eavesdropper) → dashed ellipse
-
-Sends → solid arrows with payload labels
-
-Adversary taps → dashed lines
-
-
-(FORMAL) — Reference for Professor / Advanced Users
-Payload expressions
-
-Can be:
-
-Identifier: m
-
-Call: Enc(k, m1 || m2)
-
-Tuple/concatenation: (m1 || m2 || m3)
-
-
-
-## EBNF Grammar (v0.2)
-program        := { decl | step } ;
-
-decl           := "principal" ident_list ";"
-               | "secretkey" ident_list ";"
-               | "publickey" ident_list ";"
-               | "privatekey" ident_list ";"
-               | "message"   ident_list ";"
-               | "cert" IDENT "(" IDENT ")" ";" ;
-
-step           := send | assert_secret ;
-
-send           := IDENT "->" IDENT ":" expr ";" ;
-assert_secret  := "assert" "secret" "(" IDENT ")" ";" ;
-
-expr           := concat_expr ;
-
-concat_expr    := term { "||" term } ;
-
-term           := IDENT
-               | IDENT "(" [ expr { "," expr } ] ")"
-               | "(" expr ")" ;
-
-ident_list     := IDENT { "," IDENT } ;
+messages:
+  Alice -> Bob: nA = nonceA
+  Bob   -> Alice: s = Sign(sk_Bob, nA)
+  Alice -> Bob: ok = Verify(pk_Bob, nA, s)

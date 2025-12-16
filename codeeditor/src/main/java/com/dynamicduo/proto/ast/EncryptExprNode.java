@@ -21,12 +21,18 @@ package com.dynamicduo.proto.ast;
 
 import java.util.List;
 
-/** Represents: Enc(k, m) */
+/**
+ * EncryptExprNode
+ *
+ * Represents an expression Enc(key, messageExpr)
+ * The key is an identifier (like K_AB) and the message can be
+ * any expression (identifier, concat, hash, etc.)
+ */
 public class EncryptExprNode extends SyntaxNode {
     private final IdentifierNode key;
-    private final IdentifierNode message;
+    private final SyntaxNode message;
 
-    public EncryptExprNode(IdentifierNode key, IdentifierNode message) {
+    public EncryptExprNode(IdentifierNode key, SyntaxNode message) {
         this.key = key;
         this.message = message;
     }
@@ -35,17 +41,21 @@ public class EncryptExprNode extends SyntaxNode {
         return key;
     }
 
-    public IdentifierNode getMessage() {
+    public SyntaxNode getMessage() {
         return message;
     }
 
     @Override
     public String label() {
-        return "Enc(key=" + key.getName() + ", msg=" + message.getName() + ")";
+
+        // Show a compact label; children hold more detail if needed.
+        return "Enc(" + key.getName() + ", " + message.label() + ")";
     }
 
     @Override
     public List<SyntaxNode> children() {
+        // Treat the key and message as children so the AST pretty-printer
+        // can draw them as a subtree
         return List.of(key, message);
     }
 }
