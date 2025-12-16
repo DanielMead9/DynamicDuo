@@ -1,5 +1,7 @@
 # DynamicDuo
 
+Running the project go to this link https://github.com/DanielMead9/DynamicDuo/blob/main/codeeditor/target/SecurityApp-1.4-SNAPSHOT.jar  to download the jar file then naviagate to the apporaite folder on your computer in the terminal. Then type "java -jar (Name of the jar)" and hit enter and the program should run.
+
 Team Charter: https://docs.google.com/document/d/1KIENRTkPKRbIOCCkRDVHd9I-GZtxyWA8i8J3fEo98dM/edit?usp=sharing 
 
 Requirements Document: https://docs.google.com/document/d/1Ccn0vOZgHxaaxaO-AUtDK1dwpJh5WCjBwO2en03bYmc/edit?usp=sharing 
