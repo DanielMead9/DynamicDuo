@@ -22,12 +22,15 @@ package com.dynamicduo.proto.codegen;
 import com.dynamicduo.proto.ast.*;
 
 import java.util.*;
+import java.util.Base64;
+
+import merrimackutil.json.types.JSONObject;
 
 /**
  * Generate starter Java code from a ProtocolNode.
  *
  * - One class: ProtocolDemo with a main method.
- * - Imports BouncyCastle + CryptoUtil.
+ * - Imports BouncyCastle + CryptoUtil + MerrimackUtil JSON.
  * - Uses:
  *     * AES-GCM for Enc(shared key, ...)
  *     * ElGamal for Enc(public key, ...)  (if key is declared PUBLIC)
@@ -35,8 +38,8 @@ import java.util.*;
  *     * SHA-256 for Hash
  *     * SHA256withRSA for Sign / Verify
  *
- * The generated code compiles, but still leaves application-specific
- * initialization (like real key loading) for the student.
+ * The generated code compiles and produces JSON "messages" for each
+ * assignment message in the protocol.
  */
 public final class JavaCodeGenerator {
 
@@ -54,7 +57,9 @@ public final class JavaCodeGenerator {
         sb.append("import java.security.*;\n");
         sb.append("import javax.crypto.SecretKey;\n");
         sb.append("import com.dynamicduo.proto.codegen.CryptoUtil;\n");
-        sb.append("import org.bouncycastle.jce.provider.BouncyCastleProvider;\n\n");
+        sb.append("import org.bouncycastle.jce.provider.BouncyCastleProvider;\n");
+        sb.append("import merrimackutil.json.types.JSONObject;\n");
+        sb.append("import java.util.Base64;\n\n");
 
         sb.append("public class ProtocolDemo {\n\n");
 
@@ -82,8 +87,7 @@ public final class JavaCodeGenerator {
         // ------------------------------------------------------------------
         Map<String, KeyKind> keyKinds = new LinkedHashMap<>();
         for (KeyDeclNode kd : proto.getKeyDecls()) {
-            // Your KeyDeclNode API: getKeyName() returns String, getOwners() -> List<String>
-            String keyName = kd.getKeyName();
+            String keyName = kd.getKeyName();   // String in your KeyDeclNode
             keyKinds.put(keyName, kd.getKind());
 
             sb.append("        // ")
@@ -92,7 +96,7 @@ public final class JavaCodeGenerator {
               .append(keyName)
               .append(": ");
 
-            List<String> owners = kd.getOwners();
+            List<String> owners = kd.getOwners(); // List<String>
             for (int i = 0; i < owners.size(); i++) {
                 if (i > 0) sb.append(", ");
                 sb.append(owners.get(i));
@@ -115,12 +119,12 @@ public final class JavaCodeGenerator {
                 case PUBLIC -> {
                     // Public key: declare and leave for initialization.
                     sb.append("        PublicKey ").append(keyName)
-                      .append(" = null; // TODO: initialize or load the public key\n");
+                      .append(" = null; // initialize or load the public key here\n");
                 }
                 case PRIVATE -> {
                     // Private key: declare and leave for initialization.
                     sb.append("        PrivateKey ").append(keyName)
-                      .append(" = null; // TODO: initialize or load the private key\n");
+                      .append(" = null; // initialize or load the private key here\n");
                 }
             }
         }
@@ -160,26 +164,49 @@ public final class JavaCodeGenerator {
         // ------------------------------------------------------------------
         // Emit one block per protocol message
         // ------------------------------------------------------------------
-        int step = 1;
+        int stepIndex = 1;
         for (MessageSendNode msg : proto.getMessages()) {
             String sender   = msg.getSender().getName();
             String receiver = msg.getReceiver().getName();
 
-            sb.append("        // Step ").append(step++).append(": ")
+            sb.append("        // Step ").append(stepIndex).append(": ")
               .append(sender).append(" -> ").append(receiver).append(": ")
               .append(msg.getBody().label())
               .append("\n");
 
+            String payloadVarName = null;
+
             if (msg.getBody() instanceof AssignNode assign) {
                 String varName = assign.getTarget().getName();
+                payloadVarName = varName;
                 String exprCode = generateExpr(assign.getValue(), keyKinds);
                 sb.append("        byte[] ").append(varName)
-                  .append(" = ").append(exprCode).append(";\n\n");
+                  .append(" = ").append(exprCode).append(";\n");
             } else {
                 String exprCode = generateExpr(msg.getBody(), keyKinds);
-                // If it's not an assignment, just evaluate the expression (side-effect-less)
-                sb.append("        ").append(exprCode).append(";\n\n");
+                sb.append("        ").append(exprCode).append(";\n");
             }
+
+            // After computing the assignment, wrap it in a JSON message
+            if (payloadVarName != null) {
+                sb.append("        JSONObject msg").append(stepIndex).append(" = new JSONObject();\n");
+                sb.append("        msg").append(stepIndex).append(".put(\"from\", \"")
+                  .append(sender).append("\");\n");
+                sb.append("        msg").append(stepIndex).append(".put(\"to\", \"")
+                  .append(receiver).append("\");\n");
+                sb.append("        msg").append(stepIndex).append(".put(\"label\", \"")
+                  .append(payloadVarName).append("\");\n");
+                sb.append("        msg").append(stepIndex).append(".put(")
+                  .append("\"payload\", Base64.getEncoder().encodeToString(")
+                  .append(payloadVarName).append("));\n");
+                sb.append("        String json").append(stepIndex)
+                  .append(" = msg").append(stepIndex).append(".toJSON();\n");
+                sb.append("        System.out.println(\"JSON step ")
+                  .append(stepIndex).append(": \" + json").append(stepIndex).append(");\n");
+            }
+
+            sb.append("\n");
+            stepIndex++;
         }
 
         sb.append("    }\n");
@@ -267,7 +294,7 @@ public final class JavaCodeGenerator {
         // Hash(m) -> SHA-256
         if (node instanceof HashExprNode h) {
             String inner = generateExpr(h.getInner(), keyKinds);
-            return "CryptoUtil.sha256(" + inner + ")";
+            return "CryptoUtil.sha256(inner)".replace("inner", inner);
         }
 
         // Sign(sk, m) -> RSA SHA256 signature
