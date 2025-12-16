@@ -64,6 +64,17 @@
         <artifactId>bcpkix-jdk18on</artifactId>
         <version>1.78</version>
     </dependency>
+
+    <!-- Merrimack Utilities (local JAR in lib/) -->
+    <dependency>
+    <!-- These coordinates are just labels when using system scope -->
+    <groupId>edu.merrimack</groupId>
+    <artifactId>merrimackutil</artifactId>
+    <version>1.0</version>
+    <scope>system</scope>
+    <systemPath>${project.basedir}/lib/merrimackutil.jar</systemPath>
+</dependency>
+
 </dependencies>
 
   <build>

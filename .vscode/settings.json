@@ -2,7 +2,8 @@
   "java.configuration.updateBuildConfiguration": "interactive",
   "java.project.referencedLibraries": [
     "lib/bcprov-jdk18on-178.jar",
-    "lib/bcpkix-jdk18on-178.jar"
+    "lib/bcpkix-jdk18on-178.jar",
+    "lib/merrimackutil.jar"
   ],
   "liveServer.settings.port": 5501
 }

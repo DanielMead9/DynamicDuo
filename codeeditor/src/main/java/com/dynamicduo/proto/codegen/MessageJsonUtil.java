@@ -1,9 +1,15 @@
 package com.dynamicduo.proto.codegen;
 
+import merrimackutil.json.InvalidJSONException;
 import merrimackutil.json.types.JSONObject;
 import merrimackutil.json.types.JSONArray;
-
+import merrimackutil.json.types.JSONType;
+import merrimackutil.json.JsonIO;
+import java.io.StringReader;
 import java.util.Base64;
+
+
+
 
 /**
  * Helper for turning encrypted protocol messages into JSON
@@ -23,16 +29,6 @@ public final class MessageJsonUtil {
 
     private MessageJsonUtil() {}
 
-    /**
-     * Build a JSON object representing one protocol message.
-     *
-     * @param from   logical sender (e.g. "Alice")
-     * @param to     logical receiver (e.g. "Bob")
-     * @param step   step number in the protocol (1,2,3,...)
-     * @param label  variable name in the protocol (e.g. "c1")
-     * @param payload ciphertext/MAC/signature bytes
-     * @param note   human-readable description (e.g. "Enc(K_AB, M_1 || N_1)")
-     */
     public static JSONObject makeMessage(
             String from,
             String to,
@@ -51,25 +47,30 @@ public final class MessageJsonUtil {
         return obj;
     }
 
-    /**
-     * Serialize a message JSONObject to a String for sending on a socket.
-     */
     public static String toJsonString(JSONObject obj) {
-        return obj.toString(); // merrimackutil JSONObject implements JSON text output
+        return obj.toJSON();
     }
 
     /**
      * Parse a received JSON string back into a JSONObject.
      */
     public static JSONObject parseMessage(String json) {
-        return JSONObject.parse(json); // adjust if your JSONObject has a different parse API
+        try {
+            JSONObject obj = JsonIO.readObject(json);   // <--- correct MerrimackUtil API
+            if (obj == null) {
+                throw new IllegalArgumentException("Parsed JSON object was null");
+            }
+            return obj;
+        } catch (InvalidJSONException e) {
+            throw new IllegalArgumentException("Invalid JSON for protocol message", e);
+        }
     }
 
     /**
      * Convenience: decode the payload base64 from a message JSON.
      */
     public static byte[] extractPayload(JSONObject obj) {
-        String b64 = (String) obj.get("payload");
+        String b64 = obj.getString("payload");
         return Base64.getDecoder().decode(b64);
     }
 }
