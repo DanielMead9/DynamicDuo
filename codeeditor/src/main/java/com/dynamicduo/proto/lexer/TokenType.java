@@ -24,19 +24,33 @@ package com.dynamicduo.proto.lexer;
  * Keep this tiny and specific to today's grammar.
  */
 public enum TokenType {
+
     // Keywords
-    ROLES,
-    ENC,
-    DEC, // reserved for later, not used today
+    ROLES, // principals declaration
+    ENC,   // encrypt
+    DEC,   // decrypt
+    MAC,   // message authentication code
+    SIGN,  // signature
+    VRFY,  // verify signature
+    HASH,  // cryptographic hash
+
+    SHARED, // shared key declaration
+    PUBLIC,
+    PRIVATE,
+    KEY,
+    ASSERT,
+    SECRET, 
 
     // Symbols
-    ARROW, // ->
-    COLON, // :
-    COMMA, // ,
-    EQUAL, // =
+    ARROW,  // ->
+    COLON,  // :
+    COMMA,  // ,
+    EQUAL,  // =
     LPAREN, // (
     RPAREN, // )
-    EOF, // end of input
+    CONCAT, // ||
+    EOF,    // end of input
+    
 
     // Identifiers: names like Alice, Bob, k, m, c...
     IDENTIFIER

@@ -50,7 +50,21 @@
       <version>4.13.2</version>
       <scope>test</scope>
     </dependency>
-  </dependencies>
+
+    <!-- BouncyCastle core (crypto primitives) -->
+    <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcprov-jdk18on</artifactId>
+        <version>1.78</version>
+    </dependency>
+
+    <!-- BouncyCastle PKIX/PGP (key formats, extra algorithms incl. ElGamal helpers) -->
+    <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk18on</artifactId>
+        <version>1.78</version>
+    </dependency>
+</dependencies>
 
   <build>
     <plugins>

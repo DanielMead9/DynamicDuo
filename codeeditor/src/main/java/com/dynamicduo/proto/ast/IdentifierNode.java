@@ -33,6 +33,6 @@ public class IdentifierNode extends SyntaxNode {
 
     @Override
     public String label() {
-        return "Id(" + name + ")";
+        return name ;
     }
 }

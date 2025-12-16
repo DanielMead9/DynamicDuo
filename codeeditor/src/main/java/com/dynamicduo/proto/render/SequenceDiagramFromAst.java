@@ -106,8 +106,27 @@ public final class SequenceDiagramFromAst {
             return a.getTarget().getName() + " = " + labelFor(a.getValue());
         }
         if (body instanceof EncryptExprNode e) {
-            return "Enc(" + e.getKey().getName() + ", " + e.getMessage().getName() + ")";
+            return "Enc(" + e.getKey().getName() + ", " + labelFor(e.getMessage()) + ")";
         }
-        return body.label(); // generic fallback
+        if (body instanceof MacExprNode m) {
+            return "Mac(" + m.getKey().getName() + ", " + labelFor(m.getMessage()) + ")";
+        }
+        if (body instanceof SignExprNode s) {
+            return "Sign(" + s.getSigningKey().getName() + ", " + labelFor(s.getMessage()) + ")";
+        }
+        if (body instanceof VerifyExprNode v) {
+            return "Verify(" + v.getPublicKey().getName() + ", "
+                + labelFor(v.getMessage()) + ", "
+                + labelFor(v.getSignature()) + ")";
+        }
+        if (body instanceof HashExprNode h) {
+            return "H(" + labelFor(h.getInner()) + ")";
+        }
+        if (body instanceof ConcatNode c) {
+            return labelFor(c.getLeft()) + " || " + labelFor(c.getRight());
+        }
+
+        // Fallback: use whatever the node itself thinks is a good label
+        return body.label();
     }
 }

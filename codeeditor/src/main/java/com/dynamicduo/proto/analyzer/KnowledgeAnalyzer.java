@@ -1,21 +1,21 @@
 /*
-*
-* Copyright (C) 2025 Owen Forsyth and Daniel Mead
-*
-* This program is free software: you can redistribute it and/or modify 
-* it under the terms of the GNU General Public License as published by 
-* the Free Software Foundation, either version 3 of the License, or 
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful, 
-* but WITHOUT ANY WARRANTY; without even the implied warranty of 
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
-* General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License 
-* along with this program. If not, see <https://www.gnu.org/licenses/>.
-*
-*/
+ *
+ * Copyright (C) 2025 Owen Forsyth and Daniel Mead
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * I should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
 
 package com.dynamicduo.proto.analyzer;
 
@@ -31,207 +31,412 @@ import java.util.*;
  * (Alice, Bob, etc.) and an implicit eavesdropper ("Adversary")
  * knows after a single run of the protocol.
  *
- * What we track:
- * - For each principal P:
- * knows[P] = set of atomic terms P knows (K_AB, N_A, M_1, c, ...)
- * encryptTerms[P] = set of ciphertext terms P has seen ("Enc(K_AB, M_1)", ...)
+ * What this track:
+ *   - For each principal P:
+ *       knows[P]       = set of atomic terms P knows (K_AB, N_A, M_1, c, ...)
+ *       cryptoTerms[P] = set of opaque structured terms P has seen
+ *                        ("Enc(K_AB, M_1)", "Mac(K_AB, c)", "Concatenation(m1, 0)", ...)
  *
- * Rules (Dolev–Yao style, simplified):
- * - When P sends or receives a message, P "sees" the terms that appear in the
- * clear.
- * - The Adversary is assumed to see ALL messages (passive eavesdropper).
- * - Ciphertexts are opaque: seeing Enc(k, m) does NOT reveal k or m.
- * - If P knows Enc(k, m) and also knows k (from somewhere else), then we add m
- * to P's knowledge.
- * - We repeat that inference until no new terms are learned.
+ * Semantic model (more “computational” than pure symbolic):
+ *
+ *   - When P sends or receives a message, P "sees":
+ *       * identifiers that appear in the clear (not under crypto),
+ *       * opaque crypto terms (Enc, Mac, H, Sign, Verify, Concat, ...).
+ *
+ *   - The adversary is assumed to see ALL messages (passive eavesdropper).
+ *
+ *   - Ciphertexts, MACs, hashes, signatures, and concatenations are opaque:
+ *       * Seeing Enc(k, m) does not automatically reveal k or m.
+ *       * Seeing m1 || 0 in the clear is treated as a single opaque Concat(...)
+ *         term, not as separate identifiers m1 and 0.
+ *
+ *   - Decryption rule:
+ *       If P knows Enc(k, m) (as an opaque term) and also knows k (from
+ *       somewhere else as an identifier), then P learns m as a symbolic
+ *       identifier.
+ *
+ *   - The analyzer does NOT currently “open up” concatenations. Even if P learns a
+ *     Concat(m1, 0) term, that stays as one opaque blob from the point of
+ *     view of this analyzer. This matches the idea that seeing a bitstring
+ *     does not automatically tell me which variable it came from.
  *
  * Simplifications:
- * - Identifiers (IdentifierNode) are treated as atomic symbols: "K_AB", "N_A",
- * "M_1", "c", etc.
- * - EncryptExprNode is treated as a term Enc(key, message).
- * - "Catastrophic" is: the adversary learns any K_* or M_* (keys or plaintext
- * messages),
- * purely as a demo signal.
+ *   - Identifiers (IdentifierNode) are treated as atomic symbols: "K_AB",
+ *     "N_A", "M_1", "c", etc.
+ *   - EncryptExprNode / MacExprNode / HashExprNode / SignExprNode /
+ *     VerifyExprNode / ConcatNode are all treated as opaque structured
+ *     terms. I encode them as strings like "Enc(K_AB, M_1)" for now.
+ *   - "Catastrophic" is: the adversary learns any identifier that looks like
+ *     a key (K_*) or plaintext message (M_*). I just use this as a rough
+ *     signal for now.
  */
 public final class KnowledgeAnalyzer {
 
     // Label for the implicit eavesdropping adversary.
     private static final String ADVERSARY = "Adversary";
 
-    // Utility class; no one should instantiate this.
     private KnowledgeAnalyzer() {
+        // Utility class
     }
 
     /**
      * Public entry point.
      *
-     * Call from Demo.java as:
-     * KnowledgeAnalyzer.analyzeAndPrint(tree);
+     * Typical usage from a demo:
+     *     KnowledgeAnalyzer.analyzeAndPrint(tree);
      *
-     * It prints the knowledge summary to stdout.
+     * This prints the knowledge summary to stdout.
+     * The heavy lifting is done in analyzeToString().
      */
     public static void analyzeAndPrint(ProtocolNode proto) {
-        // knows[P] = set of terms that principal P knows
+        System.out.print(analyzeToString(proto));
+    }
+
+
+    /**
+     * Walk a SyntaxNode subtree and extract:
+     *  - identifiers that appear in the clear (lhs of assignments, bare ids, and
+     *    any opaque crypto/concat terms we want to list in the summary)
+     *  - ciphertext terms "Enc(keySym, msgSym)" as opaque units in encrypts
+     *
+     * Visibility rules:
+     *  - Bare identifiers: visible in the clear.
+     *  - Assignment "x = expr": the variable x is visible; visibility of expr
+     *    depends on Recursion + node-specific rules.
+     *  - Enc(key, msgExpr): we record only the ciphertext symbol
+     *      Enc(keyName, msgLabel)
+     *    in encrypts; no visibility of msgExpr’s internals.
+     *  - Concat(left, right): treated as a single symbol "(leftLabel || rightLabel)"
+     *    with no automatic visibility of left/right.
+     *  - Mac, Hash, Sign, Verify: treated as opaque symbols, added to identifiers
+     *    so they appear in the knowledge summary but do not enable inference.
+     */
+    private static void collectTerms(
+            SyntaxNode node,
+            Set<String> identifiers,
+            Set<String> encrypts) {
+
+        // Bare identifier in the clear.
+        if (node instanceof IdentifierNode id) {
+            identifiers.add(id.getName());
+        }
+
+        // Encryption: Enc(keyExpr, msgExpr)
+        else if (node instanceof EncryptExprNode enc) {
+            String kName = enc.getKey().getName();
+            // The message is a general expression, so we use its label as a symbol.
+            String mSym  = enc.getMessage().label();
+
+            String term = "Enc(" + kName + ", " + mSym + ")";
+            encrypts.add(term);
+
+            // Do NOT recurse into enc.getMessage() for visibility.
+            // Ciphertext is opaque unless the key is known and the decryption
+            // inference rule fires later.
+        }
+
+        // Concatenation: left || right
+        else if (node instanceof ConcatNode cat) {
+            String leftLabel  = cat.getLeft().label();
+            String rightLabel = cat.getRight().label();
+            String sym = "(" + leftLabel + " || " + rightLabel + ")";
+
+            // Treat the entire concatenation as an opaque symbol.
+            identifiers.add(sym);
+
+            // Do NOT recurse into left/right; that matches the "opaque blob" model.
+        }
+
+        // MAC: Mac(keyId, msgExpr)
+        else if (node instanceof MacExprNode mac) {
+            String kName   = mac.getKey().getName();
+            String msgSym  = mac.getMessage().label();
+            String sym = "Mac(" + kName + ", " + msgSym + ")";
+
+            // Include the MAC tag as a visible symbol, but no inference is built on it.
+            identifiers.add(sym);
+            // No recursion into msgExpr for visibility.
+        }
+
+        // Hash: Hash(expr)
+        else if (node instanceof HashExprNode h) {
+            String inner = h.getInner().label();
+            String sym = "H(" + inner + ")";
+
+            identifiers.add(sym);
+            // Do not recurse into inner for visibility.
+        }
+
+        // Signature: Sign(sk, msgExpr)
+        else if (node instanceof SignExprNode s) {
+            String skName  = s.getSigningKey().getName();
+            String msgSym  = s.getMessage().label();
+            String sym = "Sign(" + skName + ", " + msgSym + ")";
+
+            identifiers.add(sym);
+        }
+
+        // Verify: Verify(pk, msgExpr, sigExpr)
+        else if (node instanceof VerifyExprNode v) {
+            String pkName   = v.getPublicKey().getName();
+            String msgSym   = v.getMessage().label();
+            String sigSym   = v.getSignature().label();
+            String sym = "Verify(" + pkName + ", " + msgSym + ", " + sigSym + ")";
+
+            identifiers.add(sym);
+        }
+
+        // Assignment: exposes the LHS variable in the clear,
+        // then applies the visibility rules recursively to the RHS.
+        else if (node instanceof AssignNode a) {
+            identifiers.add(a.getTarget().getName());
+            collectTerms(a.getValue(), identifiers, encrypts);
+        }
+    }
+
+
+    /**
+     * Main knowledge analysis function.
+     *
+     * Given a ProtocolNode AST, returns a pretty-printed string
+     * summarizing what each principal (and the adversary) knows
+     * after one run of the protocol.
+     */
+    public static String analyzeToString(ProtocolNode proto) {
+
         Map<String, Set<String>> knows = new LinkedHashMap<>();
+        Map<String, Set<String>> encryptTerms = new LinkedHashMap<>();
 
         // 1) Initialize knowledge map for all declared roles in the protocol.
         for (IdentifierNode id : proto.getRoles().getRoles()) {
-            // LinkedHashSet keeps insertion order so output is stable and readable.
             knows.put(id.getName(), new LinkedHashSet<>());
         }
-
         // Add the implicit passive adversary.
         knows.put(ADVERSARY, new LinkedHashSet<>());
 
-        // encryptTerms[P] = set of ciphertext terms "Enc(k, m)" that P has seen
-        Map<String, Set<String>> encryptTerms = new LinkedHashMap<>();
+        // 2) Seed knowledge from key declarations
+        for (KeyDeclNode kd : proto.getKeyDecls()) {
+            String keyName = kd.getKeyName();
+            switch (kd.getKind()) {
+                case SHARED:
+                    // shared key known only to owners
+                    for (String owner : kd.getOwners()) {
+                        if (knows.containsKey(owner)) {
+                            knows.get(owner).add(keyName);
+                        }
+                    }
+                    break;
+
+                case PUBLIC:
+                    // public key known to all principals (roles + adversary)
+                    for (String principal : knows.keySet()) {
+                        knows.get(principal).add(keyName);
+                    }
+                    break;
+
+                case PRIVATE:
+                    // private key known only to owner(s)
+                    for (String owner : kd.getOwners()) {
+                        if (knows.containsKey(owner)) {
+                            knows.get(owner).add(keyName);
+                        }
+                    }
+                    break;
+            }
+        }
+
+        // 3) Initialize encryptTerms map (opaque Enc(...) terms per principal)
         for (String p : knows.keySet()) {
             encryptTerms.put(p, new LinkedHashSet<>());
         }
 
-        // 2) Process each message in order.
-        //
-        // Each MessageSendNode represents something like:
-        // Alice -> Bob : c = Enc(K_AB, M_1)
-        //
-        // Observers:
-        // - sender (Alice)
-        // - receiver (Bob)
-        // - adversary (sees everything on the wire)
+        // 4) Collect terms from messages
         for (MessageSendNode msg : proto.getMessages()) {
             String sender = msg.getSender().getName();
-            String recv = msg.getReceiver().getName();
-
+            String recv   = msg.getReceiver().getName();
             List<String> observers = List.of(sender, recv, ADVERSARY);
 
-            // Collect clear identifiers and opaque ciphertext terms from this message body.
-            Set<String> ids = new LinkedHashSet<>();
-            Set<String> encs = new LinkedHashSet<>();
-            collectTerms(msg.getBody(), ids, encs);
+            // 4.1) What is visible on the wire (existing visibility rules)
+            Set<String> visibleIds = new LinkedHashSet<>();
+            Set<String> encs       = new LinkedHashSet<>();
+            collectTerms(msg.getBody(), visibleIds, encs);
 
-            // Everything visible in this message is learned by each observer.
+            // 4.2) What the sender must know to BUILD this message (keys, nonces, etc.)
+            Set<String> builtIds = new LinkedHashSet<>();
+            collectAuthorIds(msg.getBody(), builtIds);
+
+            // Observers learn only what is visible on the wire
             for (String p : observers) {
-                knows.get(p).addAll(ids);
+                knows.get(p).addAll(visibleIds);
                 encryptTerms.get(p).addAll(encs);
+            }
+
+            // Sender also knows all identifiers used to construct the message
+            if (knows.containsKey(sender)) {
+                knows.get(sender).addAll(builtIds);
             }
         }
 
-        // 3) Apply the decryption inference rule until no new information appears.
-        //
-        // Rule:
-        // If P knows Enc(k, m) in encryptTerms[P]
-        // AND P knows k in knows[P]
-        // THEN add m to knows[P].
-        //
-        // This may unlock new keys/messages, so we iterate until stable.
+        // 5) Apply decryption rule until no new knowledge is added.
+        //    If P has Enc(k, m) and knows k, and m is a bare identifier, then P learns m.
         boolean changed;
         do {
             changed = false;
 
             for (String p : knows.keySet()) {
-                Set<String> terms = knows.get(p); // plain knowledge of P
-                Set<String> encs = encryptTerms.get(p); // ciphertexts P has seen
+                Set<String> terms = knows.get(p);
+                Set<String> encs  = encryptTerms.get(p);
 
                 for (String enc : encs) {
-                    // Expect format "Enc(k, m)" as constructed in collectTerms.
-                    if (!enc.startsWith("Enc(") || !enc.endsWith(")")) {
-                        continue; // defensive skip if malformed
-                    }
-
-                    String inside = enc.substring("Enc(".length(), enc.length() - 1);
-                    // Split "k, m" into ["k", "m"]
-                    String[] parts = inside.split(",", 2);
-                    if (parts.length != 2)
+                    if (!enc.startsWith("Enc(") || !enc.endsWith(")"))
                         continue;
 
-                    String k = parts[0].trim(); // key identifier
-                    String m = parts[1].trim(); // message identifier
+                    String inside = enc.substring(4, enc.length() - 1);
+                    String[] parts = inside.split(",", 2);
+                    if (parts.length != 2) continue;
 
-                    // If P knows the key and does not yet know the message, P learns the message.
-                    if (terms.contains(k) && !terms.contains(m)) {
+                    String k = parts[0].trim();
+                    String m = parts[1].trim();
+
+                    // Only learn *bare* identifiers as plaintext from decryption
+                    if (terms.contains(k) && !terms.contains(m) && isBareIdentifier(m)) {
                         terms.add(m);
                         changed = true;
                     }
                 }
             }
-        } while (changed); // keep looping while new info is being added
 
-        // 4) Print knowledge summary.
-        System.out.println("=== Knowledge Summary ===");
-        for (Map.Entry<String, Set<String>> e : knows.entrySet()) {
-            System.out.println(e.getKey() + " knows: " + e.getValue());
+        } while (changed);
+
+        // 6) Build pretty, categorized output
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== Knowledge Summary ===\n\n");
+
+        for (String principal : knows.keySet()) {
+            sb.append(principal).append("\n");
+
+            Set<String> atomic     = new LinkedHashSet<>();
+            Set<String> structured = new LinkedHashSet<>();
+
+            // Split into atomic vs structured based on simple heuristic
+            for (String term : knows.get(principal)) {
+                if (isStructuredTerm(term)) {
+                    structured.add(term);
+                } else {
+                    atomic.add(term);
+                }
+            }
+
+            // Enc(...) terms live in encryptTerms; include them as structured, too
+            structured.addAll(encryptTerms.get(principal));
+
+            sb.append("  Atomic terms:\n");
+            if (atomic.isEmpty()) {
+                sb.append("    (none)\n");
+            } else {
+                for (String t : atomic) {
+                    sb.append("    - ").append(t).append("\n");
+                }
+            }
+
+            sb.append("  Structured terms:\n");
+            if (structured.isEmpty()) {
+                sb.append("    (none)\n");
+            } else {
+                for (String t : structured) {
+                    sb.append("    - ").append(t).append("\n");
+                }
+            }
+
+            sb.append("\n");
         }
 
-        // 5) Identify "catastrophic" leaks:
-        //
-        // If the adversary learns any term that looks like a key (K_*)
-        // or a plaintext message (M_*), we flag it.
-        Set<String> advTerms = knows.get(ADVERSARY);
+        // 7) Catastrophic leak summary (still using K_*/M_* heuristic for now)
+        Set<String> adv = knows.get(ADVERSARY);
         Set<String> catastrophic = new LinkedHashSet<>();
-        for (String t : advTerms) {
+
+        for (String t : adv) {
             if (t.startsWith("K_") || t.startsWith("M_")) {
                 catastrophic.add(t);
             }
         }
 
         if (!catastrophic.isEmpty()) {
-            System.out.println("*** Catastrophic for protocol: adversary learned "
-                    + catastrophic + " ***");
+            sb.append("*** Potentially catastrophic: adversary learned the following key/plaintext symbols:\n");
+            for (String t : catastrophic) {
+                sb.append("  - ").append(t).append("\n");
+            }
         } else {
-            System.out.println("No catastrophic leaks under this simple model.");
+            sb.append("No catastrophic leaks under this simple model.\n");
         }
+
+        return sb.toString();
+    }
+
+
+    /**
+     * Heuristic: treat anything with parentheses or "||" as a structured term
+     * (ciphertext, MAC, signature, hash, concat, etc.), and bare symbols
+     * like K_AB, M_1, N_A as atomic.
+     */
+    private static boolean isStructuredTerm(String term) {
+        return term.contains("(") || term.contains("||");
     }
 
     /**
-     * collectTerms
-     *
-     * Walks a SyntaxNode subtree and extracts:
-     * - identifiers that appear in the clear (LHS of assignments, bare identifiers)
-     * - ciphertext terms "Enc(k, m)" as opaque units
-     *
-     * IMPORTANT (correct Dolev–Yao behavior):
-     * - When we see Enc(k, m), we record ONLY "Enc(k, m)" as a visible term.
-     * - We DO NOT expose k or m from inside the ciphertext.
-     * - This ensures the adversary does NOT automatically see plaintext or keys.
+     * Collect identifiers that a sender must know in order to BUILD the message.
+     * Unlike collectTerms, this ignores visibility rules and recurses into
+     * the internals of crypto/concat expressions.
      */
-    private static void collectTerms(SyntaxNode node,
-            Set<String> identifiers,
-            Set<String> encrypts) {
-
-        // A bare identifier (not under encryption) appears in the clear.
-        // Example: "K_AB" by itself, "c" as a variable name, etc.
+    private static void collectAuthorIds(SyntaxNode node, Set<String> out) {
         if (node instanceof IdentifierNode id) {
-            identifiers.add(id.getName());
+            out.add(id.getName());
+        } else if (node instanceof EncryptExprNode enc) {
+            collectAuthorIds(enc.getKey(), out);
+            collectAuthorIds(enc.getMessage(), out);
+        } else if (node instanceof ConcatNode cat) {
+            collectAuthorIds(cat.getLeft(), out);
+            collectAuthorIds(cat.getRight(), out);
+        } else if (node instanceof MacExprNode mac) {
+            collectAuthorIds(mac.getKey(), out);
+            collectAuthorIds(mac.getMessage(), out);
+        } else if (node instanceof HashExprNode h) {
+            collectAuthorIds(h.getInner(), out);
+        } else if (node instanceof SignExprNode s) {
+            collectAuthorIds(s.getSigningKey(), out);
+            collectAuthorIds(s.getMessage(), out);
+        } else if (node instanceof VerifyExprNode v) {
+            collectAuthorIds(v.getPublicKey(), out);
+            collectAuthorIds(v.getMessage(), out);
+            collectAuthorIds(v.getSignature(), out);
+        } else if (node instanceof AssignNode a) {
+            // The sender obviously knows the variable they assign to and
+            // all identifiers used in the assigned expression.
+            collectAuthorIds(a.getTarget(), out);
+            collectAuthorIds(a.getValue(), out);
         }
-
-        // An encryption expression Enc(key, msg):
-        // - We treat this as an opaque term "Enc(key, msg)".
-        // - We DO NOT add key or msg to identifiers (no peeking inside).
-        else if (node instanceof EncryptExprNode enc) {
-            String kName = enc.getKey().getName();
-            String mName = enc.getMessage().getName();
-
-            String term = "Enc(" + kName + ", " + mName + ")";
-            encrypts.add(term);
-
-            // DO NOT:
-            // identifiers.add(kName);
-            // identifiers.add(mName);
-            // That would incorrectly give visibility into the ciphertext.
-        }
-
-        // Assignment exposes the variable on the left-hand side.
-        // Example: c = Enc(K_AB, M_1)
-        // - "c" appears in the clear and should be considered known to observers.
-        // - The right-hand side may contain identifiers and ciphertexts, but
-        // visibility is handled by recursive calls (with correct opacity rules).
-        else if (node instanceof AssignNode a) {
-            identifiers.add(a.getTarget().getName());
-            collectTerms(a.getValue(), identifiers, encrypts);
-        }
-
-        // If we introduce more node types later (tuples, concatenations, explicit
-        // nonces, etc.), extend this method with additional "else if" branches
-        // to define how they contribute to visibility.
+        // For other node types, nothing to do
     }
+
+        /**
+     * Treat as "bare identifier" only simple symbols like K_AB, M_1, N_A, c, ack.
+     * We exclude anything with non [A-Za-z0-9_] characters, and also the internal
+     * "Concat" label which comes from expression labels, not from user-level ids.
+     */
+    private static boolean isBareIdentifier(String term) {
+        if ("Concat".equals(term)) {
+            return false; // internal label for concatenations; not a user-visible atom
+        }
+        if (term.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < term.length(); i++) {
+            char c = term.charAt(i);
+            if (!(Character.isLetterOrDigit(c) || c == '_')) {
+                return false;
+            }
+        }
+        return true;
+    }
+
 }
