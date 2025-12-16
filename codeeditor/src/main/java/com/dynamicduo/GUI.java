@@ -412,10 +412,6 @@ public class GUI extends JFrame implements KeyListener {
                 // After a successful run, go straight to SVG tab (possibly can change to analysis)
                 switchMode("svg");
             }
-
-            // debugging
-            JOptionPane.showMessageDialog(this, "Run Button pressed");
-
     });
 
 
