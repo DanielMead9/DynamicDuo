@@ -23,19 +23,22 @@ import com.dynamicduo.proto.lexer.Lexer;
 import com.dynamicduo.proto.parser.ProtocolParser;
 import com.dynamicduo.proto.parser.ParseException;
 import com.dynamicduo.proto.ast.ProtocolNode;
-import com.dynamicduo.proto.render.SVG;
 import com.dynamicduo.proto.render.SequenceDiagramFromAst;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.filechooser.FileSystemView;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.*;
 import java.net.URI;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.prefs.Preferences;
+
 import org.fife.ui.rsyntaxtextarea.*;
 import org.fife.ui.rtextarea.*;
 
@@ -65,14 +68,14 @@ public class GUI extends JFrame implements KeyListener {
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
 
-    private Analysis analysis;
     private String analysisStr, svgStr;
 
-    private ProtocolNode lastProtocol; 
+    private ProtocolNode lastProtocol;
 
     private boolean executed = false, dark = false;
     private JLabel label = new JLabel();
     private double zoomFactor = 1.0;
+
 
     public GUI() {
         setTitle("Security Message App");
@@ -198,126 +201,113 @@ public class GUI extends JFrame implements KeyListener {
         javaBtn.addActionListener(e -> switchMode("java"));
         analysisBtn.addActionListener(e -> switchMode("analysis"));
 
-        // --- Save button action (with extension suggestion + auto-append) ---
+        // ---------------- SAVE (cross-platform, default = Documents/DynamicDuoExports) ----------------
         saveBtn.addActionListener(e -> {
 
-            // Suggest extension based on mode
             String ext = switch (currentMode) {
                 case "java" -> ".java";
                 case "analysis" -> ".txt";
+                case "svg" -> ".svg";
                 default -> ".txt";
             };
 
-            // Saving the svg
-            if (currentMode.equals("svg")) {
-                if (svgStr == null) {
-                    JOptionPane.showMessageDialog(this, "There is no SVG to save");
-                }
-                JFileChooser fileChooser = new JFileChooser();
-                fileChooser.setDialogTitle("Save Graph as SVG");
-                fileChooser.setCurrentDirectory(getDocumentsDirectory());
-                fileChooser.setSelectedFile(new File("graph.svg"));
+            String defaultName = switch (currentMode) {
+                case "java" -> "ProtocolDemo.java";
+                case "message" -> "protocol.txt";
+                case "analysis" -> "analysis.txt";
+                case "svg" -> "CryptoDiagram.svg";
+                default -> "output" + ext;
+            };
 
-                int option = fileChooser.showSaveDialog(this);
+            File exportDir = getExportDirectory(); // <-- ALWAYS DynamicDuoExports
 
-                if (option == JFileChooser.APPROVE_OPTION) {
-                    File file = fileChooser.getSelectedFile();
+            JFileChooser chooser = new JFileChooser(exportDir);
+            chooser.setDialogTitle("Save " + currentMode);
+            chooser.setSelectedFile(new File(exportDir, defaultName));
 
-                    // Ensure it ends with .svg
-                    if (!file.getName().toLowerCase().endsWith(".svg")) {
-                        file = new File(file.getParentFile(), file.getName() + ".svg");
-                    }
-
-                    try (FileWriter writer = new FileWriter(file)) {
-                        writer.write(svgStr);
-                        JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
-                    } catch (IOException sf) {
-                        JOptionPane.showMessageDialog(this, "Error saving file: " + sf.getMessage());
-                        sf.printStackTrace();
-                    }
-
-                }
-
-            } else { // Saving from any other file
-                JFileChooser fileChooser = new JFileChooser();
-                fileChooser.setCurrentDirectory(getDocumentsDirectory());
-                fileChooser.setSelectedFile(new File("untitled" + ext));
-                int option = fileChooser.showSaveDialog(this);
-                if (option == JFileChooser.APPROVE_OPTION) {
-                    File file = fileChooser.getSelectedFile();
-
-                    // Auto-append extension if missing
-                    if (!file.getName().toLowerCase().endsWith(ext)) {
-                        file = new File(file.getAbsolutePath() + ext);
-                    }
-
-                    try (FileWriter writer = new FileWriter(file)) {
-                        if (currentMode.equals("java") || currentMode.equals("message"))
-                            writer.write(codeArea.getText());
-                        else
-                            writer.write(analysisArea.getText());
-                        JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
-                    } catch (IOException ex) {
-                        JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
-                    }
-                }
+            int option = chooser.showSaveDialog(this);
+            if (option != JFileChooser.APPROVE_OPTION) {
+                refocus();
+                return;
             }
+
+            File file = chooser.getSelectedFile();
+
+            // ensure extension
+            if (!file.getName().toLowerCase().endsWith(ext)) {
+                file = new File(file.getAbsolutePath() + ext);
+            }
+
+            try {
+                if (currentMode.equals("svg")) {
+                    if (svgStr == null) {
+                        JOptionPane.showMessageDialog(this, "There is no SVG to save");
+                        refocus();
+                        return;
+                    }
+                    Files.writeString(file.toPath(), svgStr, StandardCharsets.UTF_8);
+
+                } else if (currentMode.equals("java") || currentMode.equals("message")) {
+                    Files.writeString(file.toPath(), codeArea.getText(), StandardCharsets.UTF_8);
+
+                } else { // analysis
+                    Files.writeString(file.toPath(), analysisArea.getText(), StandardCharsets.UTF_8);
+                }
+
+                JOptionPane.showMessageDialog(this, "File saved: " + file.getAbsolutePath());
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this, "Error saving file: " + ex.getMessage());
+            }
+
             refocus();
         });
 
-        // Upload button that allows for txt or pdf files into message mode
+
+        // ---------------- UPLOAD (cross-platform, default = Documents/DynamicDuoExports) ----------------
         uploadBtn.addActionListener(e -> {
-            JFileChooser fileChooser = new JFileChooser();
-            int option = fileChooser.showOpenDialog(this);
-            if (option == JFileChooser.APPROVE_OPTION) {
-                File file = fileChooser.getSelectedFile();
+            File exportDir = getExportDirectory();
 
-                // Warn if extension mismatches
-                if (!file.getName().toLowerCase().endsWith(".txt") && !file.getName().toLowerCase().endsWith(".pdf")) {
-                    int choice = JOptionPane.showConfirmDialog(
-                            this,
-                            "This file does not appear to be a .txt or .pdf.\nDo you still want to load it?",
-                            "File Extension Warning",
-                            JOptionPane.YES_NO_OPTION);
-                    if (choice != JOptionPane.YES_OPTION) {
-                        return; // cancel loading
-                    }
-                }
+            JFileChooser chooser = new JFileChooser(exportDir);
+            chooser.setDialogTitle("Upload Protocol (.txt or .pdf)");
 
-                // reading in the pdf
-                if (file.getName().toLowerCase().endsWith(".pdf")) {
+            chooser.setAcceptAllFileFilterUsed(true);
+            chooser.addChoosableFileFilter(new FileNameExtensionFilter("Text files (*.txt)", "txt"));
+            chooser.addChoosableFileFilter(new FileNameExtensionFilter("PDF files (*.pdf)", "pdf"));
+
+            int option = chooser.showOpenDialog(this);
+            if (option != JFileChooser.APPROVE_OPTION) {
+                refocus();
+                return;
+            }
+
+            File file = chooser.getSelectedFile();
+
+            String lower = file.getName().toLowerCase();
+            try {
+                if (lower.endsWith(".pdf")) {
                     try (PDDocument document = PDDocument.load(file)) {
                         PDFTextStripper stripper = new PDFTextStripper();
                         String text = stripper.getText(document);
                         codeArea.setText(text);
-                        JOptionPane.showMessageDialog(this, "File loaded: " + file.getAbsolutePath());
-                    } catch (IOException ex) {
-                        JOptionPane.showMessageDialog(this, "Error loading file: " + ex.getMessage());
                     }
-                } else { // reading in txt
-                    try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                        StringBuilder content = new StringBuilder();
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            content.append(line).append("\n");
-                        }
-                        codeArea.setText(content.toString());
-                        modeBuffers.put(currentMode, content.toString());
-                        JOptionPane.showMessageDialog(this, "File loaded: " + file.getAbsolutePath());
-                    } catch (IOException ex) {
-                        JOptionPane.showMessageDialog(this, "Error loading file: " + ex.getMessage());
-                    }
+                } else {
+                    String text = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+                    codeArea.setText(text);
                 }
 
+                modeBuffers.put(currentMode, codeArea.getText());
+                JOptionPane.showMessageDialog(this, "File loaded: " + file.getAbsolutePath());
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Error loading file: " + ex.getMessage());
             }
+
             refocus();
         });
 
+
         // Dark mode toggle
         displayBtn.addActionListener(e -> {
-            // Toggle between light and dark mode
             if (dark) {
-                // Switch to light mode
                 codeScroll.getGutter().setLineNumberColor(Color.BLACK);
                 codeScroll.getGutter().setBackground(Color.WHITE);
                 navPanel.setBackground(Color.WHITE);
@@ -335,9 +325,7 @@ public class GUI extends JFrame implements KeyListener {
                 displayBtn.setText("Dark Mode");
                 dark = false;
                 labelDark();
-
             } else {
-                // Switch to dark mode
                 codeScroll.getGutter().setLineNumberColor(Color.WHITE);
                 codeScroll.getGutter().setBackground(new Color(40, 44, 52));
                 navPanel.setBackground(Color.DARK_GRAY);
@@ -357,7 +345,6 @@ public class GUI extends JFrame implements KeyListener {
                 labelDark();
             }
             refocus();
-
         });
 
         runBtn.addActionListener(e -> {
@@ -372,12 +359,9 @@ public class GUI extends JFrame implements KeyListener {
                 System.out.println("=== AST ===");
                 System.out.println(tree.pretty());
 
-                lastProtocol = tree;  // remember the AST for Java code generation
+                lastProtocol = tree;
 
-                // Generate SVG for the SVG tab
                 svgStr = SequenceDiagramFromAst.renderTwoParty(tree);
-
-                // NEW: run knowledge analysis and store the result string
                 analysisStr = KnowledgeAnalyzer.analyzeToString(tree);
 
                 executed = true;
@@ -395,10 +379,7 @@ public class GUI extends JFrame implements KeyListener {
             }
 
             if (executed) {
-                // Small SVG cleanup
                 svgStr = svgStr.replace("stroke=\"transparent\"", "stroke=\"none\"");
-
-                // After a successful run, go straight to SVG tab (possibly can change to analysis)
                 switchMode("svg");
             }
 
@@ -414,32 +395,30 @@ public class GUI extends JFrame implements KeyListener {
             if (b == active) {
                 b.setBackground(Color.LIGHT_GRAY);
             } else {
-                b.setBackground(new Color(238, 238, 238)); // reset default
+                b.setBackground(new Color(238, 238, 238));
             }
         }
     }
 
     // Switch editor between modes and remember content
     private void switchMode(String newMode) {
-        // Save current bottom section content into buffer
         if (currentMode.equals("java") || currentMode.equals("message")) {
             modeBuffers.put(currentMode, codeArea.getText());
-        } else if (newMode.equals("analysis"))
+        } else if (newMode.equals("analysis")) {
             modeBuffers.put(currentMode, analysisArea.getText());
+        }
 
-        // Change mode
         currentMode = newMode;
 
-        // Restore buffer if exists, else start empty
         String content = modeBuffers.getOrDefault(newMode, "");
-        if (newMode.equals("java") || newMode.equals("message"))
+        if (newMode.equals("java") || newMode.equals("message")) {
             codeArea.setText(content);
-        else if (newMode.equals("analysis"))
+        } else if (newMode.equals("analysis")) {
             analysisArea.setText(content);
+        }
 
         zoomFactor = 1.0;
 
-        // Set heading text and activate buttons
         switch (newMode) {
             case "svg" -> {
                 headingArea.setText("SVG Mode\n(This is the SVG for the Message Passing)");
@@ -449,7 +428,6 @@ public class GUI extends JFrame implements KeyListener {
                 runBtn.setEnabled(false);
 
                 if (executed && svgStr != null) {
-
                     SVGUniverse universe = new SVGUniverse();
                     URI svgUri = universe.loadSVG(new StringReader(svgStr), "graph");
 
@@ -463,12 +441,9 @@ public class GUI extends JFrame implements KeyListener {
                     label = new JLabel(icon);
                     label.revalidate();
                     label.repaint();
-
                 } else {
-                    // default if message hasn't been properly run
                     label.setIcon(null);
                     label.setText("No SVG generated yet. Please run the message first or check for errors.");
-
                 }
 
                 label.setHorizontalAlignment(JLabel.CENTER);
@@ -490,7 +465,6 @@ public class GUI extends JFrame implements KeyListener {
                 splitPane4.setFocusable(true);
                 splitPane4.requestFocusInWindow();
                 labelDark();
-
             }
             case "java" -> {
                 headingArea.setText("Java Code \n(Generated starter code from protocol)");
@@ -512,7 +486,7 @@ public class GUI extends JFrame implements KeyListener {
                     codeArea.setText("No code available. Please run the message first or check for errors.");
                 }
 
-                codeArea.setEditable(false);      // keep read-only for now
+                codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
 
@@ -523,7 +497,6 @@ public class GUI extends JFrame implements KeyListener {
                 splitPane.setFocusable(true);
                 splitPane.requestFocusInWindow();
             }
-
             case "analysis" -> {
                 headingArea.setText("Analysis Mode\n(This is what parts of the message have been leaked)");
                 if (executed) {
@@ -535,6 +508,7 @@ public class GUI extends JFrame implements KeyListener {
                 highlightActiveMode(analysisBtn);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
+
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, analysisScroll);
                 splitPane2.setResizeWeight(0.10);
                 setCenterComponent(splitPane2);
@@ -543,15 +517,15 @@ public class GUI extends JFrame implements KeyListener {
                 splitPane2.addKeyListener(this);
                 splitPane2.setFocusable(true);
                 splitPane2.requestFocusInWindow();
-
             }
             case "message" -> {
-                headingArea.setText("Message Mode\nFiles can be uploaded as .txt or .pdf\n" +
-                        "Syntax:");
+                headingArea.setText("Message Mode\nFiles can be uploaded as .txt or .pdf\nSyntax:");
                 highlightActiveMode(messageBtn);
+
                 codeArea.setEditable(true);
                 uploadBtn.setEnabled(true);
                 runBtn.setEnabled(true);
+
                 setUpCodeScroll();
                 splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
                 splitPane3.setResizeWeight(0.8);
@@ -561,12 +535,10 @@ public class GUI extends JFrame implements KeyListener {
                 splitPane3.addKeyListener(this);
                 splitPane3.setFocusable(true);
                 splitPane3.requestFocusInWindow();
-
             }
         }
     }
 
-    // sets up the center component of the frame
     private void setCenterComponent(Component comp) {
         Container contentPane = getContentPane();
         BorderLayout layout = (BorderLayout) contentPane.getLayout();
@@ -581,14 +553,11 @@ public class GUI extends JFrame implements KeyListener {
         repaint();
     }
 
-    // ensures that splitPane is set up properly
     private void setUpCodeScroll() {
         splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
-
         splitPane.setResizeWeight(0.25);
     }
 
-    // Sets up key pressed method to allow zoom
     @Override
     public void keyPressed(KeyEvent e) {
         JSplitPane ext = switch (currentMode) {
@@ -597,22 +566,19 @@ public class GUI extends JFrame implements KeyListener {
             case "analysis" -> splitPane2;
             default -> splitPane3;
         };
+
         if (e.getKeyCode() == KeyEvent.VK_EQUALS && e.isControlDown()) {
-            zoomFactor += .1; // zoom in
+            zoomFactor += .1;
             zoom(ext);
-
         } else if (e.getKeyCode() == KeyEvent.VK_MINUS && e.isControlDown()) {
-            zoomFactor -= .1; // zoom out
+            zoomFactor -= .1;
             zoom(ext);
-
         } else if (e.getKeyCode() == KeyEvent.VK_0 && e.isControlDown()) {
-            zoomFactor = 1.0; // reset zoom
+            zoomFactor = 1.0;
             zoom(ext);
-
         }
     }
 
-    // zooming in or out based on what page the user is on
     public void zoom(JSplitPane ext) {
         Component[] arr = new Component[3];
         arr[0] = ext.getTopComponent();
@@ -623,12 +589,10 @@ public class GUI extends JFrame implements KeyListener {
         if (arr[0] instanceof JSplitPane inner) {
             arr[0] = inner.getTopComponent();
             arr[2] = inner.getBottomComponent();
-
             num = 3;
         }
 
         for (int i = 0; i < num; i++) {
-
             if (arr[i] instanceof JScrollPane) {
                 JScrollPane scrollPane = (JScrollPane) arr[i];
                 JViewport viewport = scrollPane.getViewport();
@@ -648,11 +612,9 @@ public class GUI extends JFrame implements KeyListener {
                     icon.setAntiAlias(true);
                     icon.setAutosize(SVGIcon.AUTOSIZE_BESTFIT);
 
-                    // Original dimensions
                     int originalWidth = icon.getIconWidth();
                     int originalHeight = icon.getIconHeight();
 
-                    // Apply zoom factor
                     int newWidth = (int) (originalWidth * zoomFactor);
                     int newHeight = (int) (originalHeight * zoomFactor);
 
@@ -667,15 +629,9 @@ public class GUI extends JFrame implements KeyListener {
         }
     }
 
-    @Override
-    public void keyReleased(KeyEvent e) {
-    }
+    @Override public void keyReleased(KeyEvent e) {}
+    @Override public void keyTyped(KeyEvent e) {}
 
-    @Override
-    public void keyTyped(KeyEvent e) {
-    }
-
-    // Setting the background of the label
     public void labelDark() {
         if (dark) {
             label.setBackground(new Color(40, 44, 52));
@@ -684,11 +640,9 @@ public class GUI extends JFrame implements KeyListener {
             label.setBackground(Color.LIGHT_GRAY);
             label.setForeground(Color.BLACK);
         }
-
         label.setOpaque(true);
     }
 
-    // refocus the frame after a button is pressed
     public void refocus() {
         JSplitPane ext = switch (currentMode) {
             case "java" -> splitPane;
@@ -699,13 +653,18 @@ public class GUI extends JFrame implements KeyListener {
         ext.requestFocusInWindow();
     }
 
+    // ---------------- Directory helpers ----------------
+
     private File getDocumentsDirectory() {
-        File documents = new File(System.getProperty("user.home"), "Documents");
-        if (documents.exists()) {
-            return documents;
-        }
-        // Fallback if Documents doesn't exist
-        return new File(System.getProperty("user.home"));
+    File docs = FileSystemView.getFileSystemView().getDefaultDirectory(); // usually “Documents”
+    if (docs != null && docs.exists()) return docs;
+    return new File(System.getProperty("user.home")); // fallback
+    }
+
+    private File getExportDirectory() {
+        File dir = new File(getDocumentsDirectory(), "DynamicDuoExports");
+        if (!dir.exists()) dir.mkdirs();
+        return dir;
     }
 
 }

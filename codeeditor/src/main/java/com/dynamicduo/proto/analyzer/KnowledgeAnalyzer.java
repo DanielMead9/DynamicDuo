@@ -214,6 +214,11 @@ public final class KnowledgeAnalyzer {
         // Add the implicit passive adversary.
         knows.put(ADVERSARY, new LinkedHashSet<>());
 
+        Map<String, KeyKind> keyKinds = new HashMap<>();
+        for (KeyDeclNode kd : proto.getKeyDecls()) {
+            keyKinds.put(kd.getKeyName(), kd.getKind());
+        }
+
         // 2) Seed knowledge from key declarations
         for (KeyDeclNode kd : proto.getKeyDecls()) {
             String keyName = kd.getKeyName();
@@ -278,7 +283,6 @@ public final class KnowledgeAnalyzer {
         }
 
         // 5) Apply decryption rule until no new knowledge is added.
-        //    If P has Enc(k, m) and knows k, and m is a bare identifier, then P learns m.
         boolean changed;
         do {
             changed = false;
@@ -299,7 +303,7 @@ public final class KnowledgeAnalyzer {
                     String m = parts[1].trim();
 
                     // Only learn *bare* identifiers as plaintext from decryption
-                    if (terms.contains(k) && !terms.contains(m) && isBareIdentifier(m)) {
+                    if (canDecrypt(terms, k, keyKinds) && !terms.contains(m) && isBareIdentifier(m)) {
                         terms.add(m);
                         changed = true;
                     }
@@ -308,69 +312,152 @@ public final class KnowledgeAnalyzer {
 
         } while (changed);
 
-        // 6) Build pretty, categorized output
+        // 5.5) Identify variables that are *produced* by crypto/opaque operations,
+        // so they should be treated as "Observed Crypto Objects" (e.g., c = Enc(...))
+        Set<String> cryptoVars = new HashSet<>();
+        for (MessageSendNode msg : proto.getMessages()) {
+            if (msg.getBody() instanceof AssignNode a) {
+                if (isCryptoExpr(a.getValue())) {
+                    cryptoVars.add(a.getTarget().getName());
+                }
+            }
+        }
+
+
+        // 6) Build pretty, categorized output (clean report style)
         StringBuilder sb = new StringBuilder();
-        sb.append("=== Knowledge Summary ===\n\n");
+        sb.append("==================================================\n");
+        sb.append("PROTOCOL KNOWLEDGE ANALYSIS\n");
+        sb.append("==================================================\n\n");
 
-        for (String principal : knows.keySet()) {
-            sb.append(principal).append("\n");
+        sb.append("Principals:\n");
+        for (IdentifierNode id : proto.getRoles().getRoles()) {
+            sb.append("  - ").append(id.getName()).append("\n");
+        }
+        sb.append("  - ").append(ADVERSARY).append(" (Passive Eavesdropper)\n\n");
 
-            Set<String> atomic     = new LinkedHashSet<>();
-            Set<String> structured = new LinkedHashSet<>();
+        // We'll collect what the adversary learned for the final verdict here:
+        Set<String> advSecretsForVerdict   = new LinkedHashSet<>();
+        Set<String> advPlaintextForVerdict = new LinkedHashSet<>();
 
-            // Split into atomic vs structured based on simple heuristic
-            for (String term : knows.get(principal)) {
+        // Print all non-adversary principals first, then adversary last
+        List<String> ordered = new ArrayList<>(knows.keySet());
+        ordered.remove(ADVERSARY);
+        ordered.add(ADVERSARY);
+
+        for (String principal : ordered) {
+
+            sb.append("--------------------------------------------------\n");
+            if (principal.equals(ADVERSARY)) {
+                sb.append("Adversary (Passive Eavesdropper)\n");
+            } else {
+                sb.append(principal).append("\n");
+            }
+            sb.append("--------------------------------------------------\n");
+
+            // Gather all terms this principal knows/sees
+            Set<String> all = new LinkedHashSet<>();
+            all.addAll(knows.get(principal));
+            // NOTE: we intentionally do NOT dump encryptTerms directly, because it causes redundancy.
+            // The assigned variable name (like "c") is what we want to show users.
+
+            // Categorize
+            Set<String> secrets   = new LinkedHashSet<>();
+            Set<String> plaintext = new LinkedHashSet<>();
+            Set<String> observed  = new LinkedHashSet<>();
+
+            for (String term : all) {
+
+                // Keys / secrets
+                if (isSecretLike(term)) {
+                    secrets.add(term);
+                    continue;
+                }
+
+                // Anything structured is a crypto object (Enc(...), Hash(...), etc.)
                 if (isStructuredTerm(term)) {
-                    structured.add(term);
+                    observed.add(term);
+                    continue;
+                }
+
+                // If this bare identifier is a crypto-produced variable (c, s1, h1...), treat as crypto object
+                if (cryptoVars.contains(term)) {
+                    observed.add(term);
+                    continue;
+                }
+
+                // Otherwise it's plaintext-like data (M1, N_A, etc.)
+                if (isPlaintextLike(term)) {
+                    plaintext.add(term);
                 } else {
-                    atomic.add(term);
+                    observed.add(term);
                 }
             }
 
-            // Enc(...) terms live in encryptTerms; include them as structured, too
-            structured.addAll(encryptTerms.get(principal));
+            // Adversary output focuses on what they observe + what they *learn*
+            if (principal.equals(ADVERSARY)) {
+                sb.append("Observed Messages / Objects:\n");
+                if (observed.isEmpty()) sb.append("  (none)\n");
+                else for (String t : observed) sb.append("  - ").append(t).append("\n");
 
-            sb.append("  Atomic terms:\n");
-            if (atomic.isEmpty()) {
-                sb.append("    (none)\n");
-            } else {
-                for (String t : atomic) {
-                    sb.append("    - ").append(t).append("\n");
-                }
+                sb.append("\nSecrets Learned:\n");
+                if (secrets.isEmpty()) sb.append("  (none)\n");
+                else for (String t : secrets) sb.append("  - ").append(t).append("\n");
+
+                sb.append("\nPlaintext Learned:\n");
+                if (plaintext.isEmpty()) sb.append("  (none)\n");
+                else for (String t : plaintext) sb.append("  - ").append(t).append("\n");
+
+                // ✅ THIS IS THE FIX: feed the verdict from the exact buckets printed above
+                advSecretsForVerdict.addAll(secrets);
+                advPlaintextForVerdict.addAll(plaintext);
+
+                sb.append("\n");
+                continue;
             }
 
-            sb.append("  Structured terms:\n");
-            if (structured.isEmpty()) {
-                sb.append("    (none)\n");
-            } else {
-                for (String t : structured) {
-                    sb.append("    - ").append(t).append("\n");
-                }
-            }
+            // Normal principal output
+            sb.append("Secrets Known:\n");
+            if (secrets.isEmpty()) sb.append("  (none)\n");
+            else for (String t : secrets) sb.append("  - ").append(t).append("\n");
+
+            sb.append("\nPlaintext Data:\n");
+            if (plaintext.isEmpty()) sb.append("  (none)\n");
+            else for (String t : plaintext) sb.append("  - ").append(t).append("\n");
+
+            sb.append("\nObserved Crypto Objects:\n");
+            if (observed.isEmpty()) sb.append("  (none)\n");
+            else for (String t : observed) sb.append("  - ").append(t).append("\n");
 
             sb.append("\n");
         }
 
-        // 7) Catastrophic leak summary (still using K_*/M_* heuristic for now)
-        Set<String> adv = knows.get(ADVERSARY);
+        // 7) Verdict / catastrophic leak summary
         Set<String> catastrophic = new LinkedHashSet<>();
+        catastrophic.addAll(advSecretsForVerdict);
+        catastrophic.addAll(advPlaintextForVerdict);
 
-        for (String t : adv) {
-            if (t.startsWith("K_") || t.startsWith("M_")) {
-                catastrophic.add(t);
-            }
-        }
+        // Only keep “catastrophic-looking” items
+        catastrophic.removeIf(t ->
+            !(t.startsWith("K_") || t.startsWith("M") || t.startsWith("sk"))
+        );
+
+        sb.append("--------------------------------------------------\n");
+        sb.append("SECURITY VERDICT\n");
+        sb.append("--------------------------------------------------\n");
 
         if (!catastrophic.isEmpty()) {
-            sb.append("*** Potentially catastrophic: adversary learned the following key/plaintext symbols:\n");
-            for (String t : catastrophic) {
-                sb.append("  - ").append(t).append("\n");
-            }
+            sb.append("Potentially catastrophic leak detected.\n");
+            sb.append("Adversary learned:\n");
+            for (String t : catastrophic) sb.append("  - ").append(t).append("\n");
         } else {
-            sb.append("No catastrophic leaks under this simple model.\n");
+            sb.append("No catastrophic leaks detected under this simple model.\n");
         }
 
+        sb.append("\n==================================================\n");
         return sb.toString();
+
+
     }
 
 
@@ -418,7 +505,7 @@ public final class KnowledgeAnalyzer {
         // For other node types, nothing to do
     }
 
-        /**
+    /**
      * Treat as "bare identifier" only simple symbols like K_AB, M_1, N_A, c, ack.
      * We exclude anything with non [A-Za-z0-9_] characters, and also the internal
      * "Concat" label which comes from expression labels, not from user-level ids.
@@ -439,4 +526,44 @@ public final class KnowledgeAnalyzer {
         return true;
     }
 
+    private static boolean isSecretLike(String term) {
+        // heuristic: shared keys + private keys
+        // K_* for symmetric/shared keys, sk* for private keys
+        return term.startsWith("K_") || term.startsWith("sk");
+    }
+
+    private static boolean isPlaintextLike(String term) {
+        // heuristic: plaintext messages + nonces
+        return term.startsWith("M") || term.startsWith("N_");
+    }
+
+
+    /**
+     * Decryption rule guard:
+     * - Knowing a PUBLIC key used in Enc(pkX, ...) does NOT enable decryption.
+     * - Only SHARED keys (K_*) and PRIVATE keys (sk*) should enable decryption.
+     */
+    private static boolean canDecrypt(Set<String> terms, String keyName, Map<String, KeyKind> keyKinds) {
+        if (!terms.contains(keyName)) return false;
+
+        // If you have keyKinds available, this is the cleanest:
+        KeyKind kind = keyKinds.get(keyName);
+        if (kind != null) {
+            return kind == KeyKind.SHARED || kind == KeyKind.PRIVATE;
+        }
+
+        // Fallback heuristic if keyKinds doesn't contain it
+        return keyName.startsWith("K_") || keyName.startsWith("sk");
+    }
+
+    private static boolean isCryptoExpr(SyntaxNode node) {
+        return node instanceof EncryptExprNode
+            || node instanceof MacExprNode
+            || node instanceof HashExprNode
+            || node instanceof SignExprNode
+            || node instanceof VerifyExprNode
+            || node instanceof ConcatNode;
+    }
+
 }
+
