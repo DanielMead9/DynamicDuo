@@ -21,7 +21,9 @@ package com.dynamicduo.proto.ast;
 
 import java.util.List;
 
-/** Represents: c = Enc(k, m) (target = value) */
+/**
+ * AssignNode: target = value
+ */
 public class AssignNode extends SyntaxNode {
     private final IdentifierNode target;
     private final SyntaxNode value; // usually EncryptExprNode

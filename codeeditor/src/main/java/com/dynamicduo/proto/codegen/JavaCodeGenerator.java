@@ -82,18 +82,11 @@ public final class JavaCodeGenerator {
             keyKinds.put(kd.getKeyName(), kd.getKind());
         }
 
-        // 3) Prepare to track key uses
-                Map<String, EnumSet<KeyUse>> uses = new LinkedHashMap<>();
-        for (String k : keyKinds.keySet()) {
-            uses.put(k, EnumSet.noneOf(KeyUse.class));
-        }
-        for (MessageSendNode msg : proto.getMessages()) {
-            markKeyUses(msg.getBody(), uses, keyKinds);
-        }
+        // 3) Track key uses by walking message ASTs
+        Map<String, EnumSet<KeyUse>> uses = buildKeyUses(proto, keyKinds);
+
 
         // 4) Determine how keys are used (signing vs encryption)
-        KeyUsage usage = analyzeKeyUsage(proto, keyKinds);
-
 
         StringBuilder sb = new StringBuilder();
 
@@ -205,35 +198,53 @@ public final class JavaCodeGenerator {
             }
         }
 
-        // RSA keypairs for pk*/sk* used for signing/verifying
-        // We pair by suffix: pkA <-> skA
-        Set<String> rsaPairsDone = new HashSet<>();
-        for (String pk : usage.rsaPublicKeys) {
-            String suffix = pk.startsWith("pk") ? pk.substring(2) : pk;
-            String sk = "sk" + suffix;
-            if (usage.rsaPrivateKeys.contains(sk) && !rsaPairsDone.contains(suffix)) {
-                rsaPairsDone.add(suffix);
+        // --- Asymmetric key initialization 
+        // We generate pairs only if the AST actually uses the keys.
+
+        Set<String> pairsDone = new HashSet<>();
+
+        for (Map.Entry<String, EnumSet<KeyUse>> entry : uses.entrySet()) {
+            String keyName = entry.getKey();
+            EnumSet<KeyUse> u = entry.getValue();
+
+            // We only care about PUBLIC keys here to drive pairing (pkX <-> skX)
+            if (keyKinds.get(keyName) != KeyKind.PUBLIC) continue;
+
+            String suffix = suffixFromPk(keyName);  // pkA -> "A"
+            if (suffix == null) continue;
+            if (pairsDone.contains(suffix)) continue;
+
+            String skName = "sk" + suffix;
+
+            boolean usedForEncrypt = u.contains(KeyUse.PK_ENCRYPT);
+            boolean usedForVerify  = u.contains(KeyUse.VERIFY);
+
+            // If the protocol references Sign(skX, ...) we want to also treat that as RSA usage.
+            // So check the PRIVATE key entry too (if it exists).
+            boolean usedForSign = uses.containsKey(skName) && uses.get(skName).contains(KeyUse.SIGN);
+
+            // If it's used for signing/verifying -> generate RSA pair
+            if (usedForSign || usedForVerify) {
+                pairsDone.add(suffix);
                 sb.append("            KeyPair rsa").append(suffix).append(" = CryptoUtil.generateRsaKeyPair(2048);\n");
-                sb.append("            PublicKey ").append(pk).append(" = rsa").append(suffix).append(".getPublic();\n");
-                sb.append("            PrivateKey ").append(sk).append(" = rsa").append(suffix).append(".getPrivate();\n");
+                sb.append("            PublicKey ").append(keyName).append(" = rsa").append(suffix).append(".getPublic();\n");
+                if (keyKinds.getOrDefault(skName, null) == KeyKind.PRIVATE) {
+                    sb.append("            PrivateKey ").append(skName).append(" = rsa").append(suffix).append(".getPrivate();\n");
+                }
+                continue;
+            }
+
+            // If it's used for public-key encryption -> generate ElGamal pair
+            if (usedForEncrypt) {
+                pairsDone.add(suffix);
+                sb.append("            KeyPair elg").append(suffix).append(" = CryptoUtil.generateElGamalKeyPair(2048);\n");
+                sb.append("            PublicKey ").append(keyName).append(" = elg").append(suffix).append(".getPublic();\n");
+                if (keyKinds.getOrDefault(skName, null) == KeyKind.PRIVATE) {
+                    sb.append("            PrivateKey ").append(skName).append(" = elg").append(suffix).append(".getPrivate();\n");
+                }
             }
         }
 
-        // ElGamal keypairs for PUBLIC keys used for encryption
-        // Pair pkX <-> skX if both exist, else still generate pair and keep pk.
-        Set<String> elgPairsDone = new HashSet<>();
-        for (String pk : usage.elgamalPublicKeys) {
-            String suffix = pk.startsWith("pk") ? pk.substring(2) : pk;
-            if (elgPairsDone.contains(suffix)) continue;
-            elgPairsDone.add(suffix);
-
-            String sk = "sk" + suffix;
-            sb.append("            KeyPair elg").append(suffix).append(" = CryptoUtil.generateElGamalKeyPair(2048);\n");
-            sb.append("            PublicKey ").append(pk).append(" = elg").append(suffix).append(".getPublic();\n");
-            if (keyKinds.containsKey(sk) && keyKinds.get(sk) == KeyKind.PRIVATE) {
-                sb.append("            PrivateKey ").append(sk).append(" = elg").append(suffix).append(".getPrivate();\n");
-            }
-        }
 
         sb.append("\n");
 
@@ -379,57 +390,14 @@ public final class JavaCodeGenerator {
 
     // ----------------- Helper: key usage analysis -----------------
 
-    private static final class KeyUsage {
-        final Set<String> rsaPublicKeys = new LinkedHashSet<>();
-        final Set<String> rsaPrivateKeys = new LinkedHashSet<>();
-        final Set<String> elgamalPublicKeys = new LinkedHashSet<>();
-    }
 
-    private static KeyUsage analyzeKeyUsage(ProtocolNode proto, Map<String, KeyKind> keyKinds) {
-        KeyUsage usage = new KeyUsage();
-        for (MessageSendNode msg : proto.getMessages()) {
-            collectKeyUsage(msg.getBody(), usage, keyKinds);
-        }
-        return usage;
-    }
-
-
-    private static void collectKeyUsage(SyntaxNode node, KeyUsage usage, Map<String, KeyKind> keyKinds) {
-        if (node instanceof AssignNode a) {
-            collectKeyUsage(a.getValue(), usage, keyKinds);
-
-        } else if (node instanceof EncryptExprNode enc) {
-            String k = enc.getKey().getName();
-
-            // Only treat Enc(pkX, ...) as ElGamal if the key is declared PUBLIC
-            if (keyKinds.getOrDefault(k, KeyKind.SHARED) == KeyKind.PUBLIC) {
-                usage.elgamalPublicKeys.add(k);
-            }
-
-            collectKeyUsage(enc.getMessage(), usage, keyKinds);
-
-        } else if (node instanceof SignExprNode s) {
-            usage.rsaPrivateKeys.add(s.getSigningKey().getName());
-            collectKeyUsage(s.getMessage(), usage, keyKinds);
-
-        } else if (node instanceof VerifyExprNode v) {
-            usage.rsaPublicKeys.add(v.getPublicKey().getName());
-            collectKeyUsage(v.getMessage(), usage, keyKinds);
-            collectKeyUsage(v.getSignature(), usage, keyKinds);
-
-        } else if (node instanceof MacExprNode mac) {
-            collectKeyUsage(mac.getMessage(), usage, keyKinds);
-
-        } else if (node instanceof HashExprNode h) {
-            collectKeyUsage(h.getInner(), usage, keyKinds);
-
-        } else if (node instanceof ConcatNode cat) {
-            collectKeyUsage(cat.getLeft(), usage, keyKinds);
-            collectKeyUsage(cat.getRight(), usage, keyKinds);
-        }
-    }
-
-
+    /* Mark key usages in the syntax tree 
+    *
+    *
+    * @param node The syntax node to mark key uses in.
+    * @param uses The map of key names to their usage sets.
+    * @param keyKinds The map of key names to their kinds.
+    */
     private static void markKeyUses(
         SyntaxNode node,
         Map<String, EnumSet<KeyUse>> uses,
@@ -443,7 +411,7 @@ public final class JavaCodeGenerator {
         if (node instanceof EncryptExprNode enc) {
             String keyName = enc.getKey().getName();
             if (keyKinds.get(keyName) == KeyKind.PUBLIC) {
-                uses.get(keyName).add(KeyUse.PK_ENCRYPT);
+                if (uses.containsKey(keyName)) uses.get(keyName).add(KeyUse.PK_ENCRYPT);
             }
             markKeyUses(enc.getMessage(), uses, keyKinds);
             return;
@@ -512,8 +480,14 @@ public final class JavaCodeGenerator {
         }
     }
 
-    // ----------------- Helper: expression generation -----------------
 
+    /**
+     * Generate a cryptographic Java expression from a given syntax node.
+     * 
+     * @param node The syntax node to generate code for.
+     * @param keyKinds Map of key names to their kinds.
+     * @return A Java expression as a String.
+     */
     private static String generateExpr(SyntaxNode node, Map<String, KeyKind> keyKinds) {
 
         if (node instanceof IdentifierNode id) {
@@ -563,4 +537,31 @@ public final class JavaCodeGenerator {
 
         return ("\"" + node.label() + "\".getBytes()");
     }
+
+    /** Build key usage information for a protocol */
+    private static Map<String, EnumSet<KeyUse>> buildKeyUses(ProtocolNode proto, Map<String, KeyKind> keyKinds) {
+        Map<String, EnumSet<KeyUse>> uses = new LinkedHashMap<>();
+        for (String k : keyKinds.keySet()) {
+            uses.put(k, EnumSet.noneOf(KeyUse.class));
+        }
+        for (MessageSendNode msg : proto.getMessages()) {
+            markKeyUses(msg.getBody(), uses, keyKinds);
+        }
+        return uses;
+    }
+
+    /**
+     * Extract suffix from a public key name, in order to match with its private key.
+     * E.g., "pkA" -> "A"
+     *
+     * @param pkName The public key name.
+     * @return The suffix or null if not applicable.
+     */
+    private static String suffixFromPk(String pkName) {
+        if (pkName != null && pkName.startsWith("pk") && pkName.length() > 2) {
+            return pkName.substring(2);
+        }
+        return null;
+    }
+
 }

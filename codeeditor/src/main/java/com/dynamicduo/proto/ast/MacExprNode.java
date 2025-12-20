@@ -21,6 +21,9 @@ package com.dynamicduo.proto.ast;
 
 import java.util.List;
 
+/**
+ * MacExprNode: mac(key, message)
+ */
 public final class MacExprNode extends SyntaxNode {
     private final IdentifierNode key;
     private final SyntaxNode message;

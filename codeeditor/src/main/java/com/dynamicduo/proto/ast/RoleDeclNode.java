@@ -23,7 +23,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** Represents: roles: Alice, Bob */
+/**
+ * RoleDeclNode: role declarations
+ */
 public class RoleDeclNode extends SyntaxNode {
     private final List<IdentifierNode> roles = new ArrayList<>();
 

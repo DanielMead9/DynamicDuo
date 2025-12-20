@@ -19,7 +19,9 @@
 
 package com.dynamicduo.proto.ast;
 
-/** Simple identifier wrapper (e.g., Alice, Bob, k, m, c). */
+/**
+ * IdentifierNode: represents an identifier.
+ */
 public class IdentifierNode extends SyntaxNode {
     private final String name;
 
