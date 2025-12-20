@@ -219,6 +219,13 @@ public final class KnowledgeAnalyzer {
             keyKinds.put(kd.getKeyName(), kd.getKind());
         }
 
+       Set<String> secretKeys = new HashSet<>();
+        for (Map.Entry<String, KeyKind> entry : keyKinds.entrySet()) {
+            if (entry.getValue() == KeyKind.SHARED || entry.getValue() == KeyKind.PRIVATE) {
+                secretKeys.add(entry.getKey());
+            }
+        }
+
         // 2) Seed knowledge from key declarations
         for (KeyDeclNode kd : proto.getKeyDecls()) {
             String keyName = kd.getKeyName();
@@ -376,7 +383,7 @@ do {
             for (String term : all) {
 
                 // Keys / secrets
-                if (isSecretLike(term)) {
+                if (isSecretLike(term, secretKeys)) {
                     secrets.add(term);
                     continue;
                 }
@@ -387,14 +394,14 @@ do {
                     continue;
                 }
 
-                // If this bare identifier is a crypto-produced variable (c, s1, h1...), treat as crypto object
-                if (cryptoVars.contains(term)) {
+                if (cryptoVars.stream().anyMatch(v -> v.equalsIgnoreCase(term))) {
                     observed.add(term);
                     continue;
                 }
 
+
                 // Otherwise it's plaintext-like data (M1, N_A, etc.)
-                if (isPlaintextLike(term)) {
+                if (isPlaintextLike(term, keyKinds, cryptoVars)) {
                     plaintext.add(term);
                 } else {
                     observed.add(term);
@@ -533,16 +540,16 @@ do {
         return true;
     }
 
-    private static boolean isSecretLike(String term) {
-        // heuristic: shared keys + private keys
-        // K_* for symmetric/shared keys, sk* for private keys
-        return term.startsWith("K_") || term.startsWith("sk");
+    private static boolean isSecretLike(String term, Set<String> secretKeys) {
+        return secretKeys.contains(term);
     }
 
-    private static boolean isPlaintextLike(String term) {
-        // heuristic: plaintext messages + nonces
-        return term.startsWith("M") || term.startsWith("N_");
-    }
+    private static boolean isPlaintextLike(String term,
+                                       Map<String, KeyKind> keyKinds,
+                                       Set<String> cryptoVars) {
+    // plaintext = a bare identifier that is NOT a key and NOT a crypto variable
+    return isBareIdentifier(term) && !keyKinds.containsKey(term) && !cryptoVars.contains(term);
+}
 
 
     /**
@@ -573,8 +580,12 @@ do {
     }
 
     /**
-     * Given a public key name, return the matching private key name.
-     * Convention: pkX -> skX
+     * Map a public key name to its corresponding private key name.
+     *
+     * This analyzer assumes the naming convention:
+     *   pkX -> skX
+     *
+     * This is a modeling assumption, not a cryptographic derivation.
      */
     private static String matchingPrivateKeyName(String pkName) {
         if (pkName.startsWith("pk") && pkName.length() > 2) {
@@ -582,7 +593,6 @@ do {
         }
         return null;
     }
-
 
 }
 

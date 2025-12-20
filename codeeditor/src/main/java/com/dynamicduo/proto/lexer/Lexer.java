@@ -94,36 +94,42 @@ public class Lexer {
 
         String text = sb.toString();
 
+
+        // Keep original spelling for identifiers
+        String raw = text;
+        String lower = text.toLowerCase(); // only for keyword matching
+
+
         // Recognize keywords
-        switch (text) {
+        switch (lower) {
             case "roles":
-                return new Token(TokenType.ROLES, text, line);
+                return new Token(TokenType.ROLES, raw, line);
             case "shared":  
-                return new Token(TokenType.SHARED, text, line);
+                return new Token(TokenType.SHARED, raw, line);
             case "public":  
-                return new Token(TokenType.PUBLIC, text, line);
+                return new Token(TokenType.PUBLIC, raw, line);
             case "private":
-                return new Token(TokenType.PRIVATE, text, line);
+                return new Token(TokenType.PRIVATE, raw, line);
             case "key":     
-                return new Token(TokenType.KEY, text, line);
+                return new Token(TokenType.KEY, raw, line);
             case "assert":  
-                return new Token(TokenType.ASSERT, text, line);
+                return new Token(TokenType.ASSERT, raw, line);
             case "secret":  
-                return new Token(TokenType.SECRET, text, line);
-            case "Enc":
-                return new Token(TokenType.ENC, text, line);
-            case "Dec":
-                return new Token(TokenType.DEC, text, line);
-            case "Mac":
-                return new Token(TokenType.MAC, text, line);
-            case "Sign":
-                return new Token(TokenType.SIGN, text, line);
-            case "Verify":
-                return new Token(TokenType.VRFY, text, line);
-            case "Hash":
-                return new Token(TokenType.HASH, text, line);
+                return new Token(TokenType.SECRET, raw, line);
+            case "enc":
+                return new Token(TokenType.ENC, raw, line);
+            case "dec":
+                return new Token(TokenType.DEC, raw, line);
+            case "mac":
+                return new Token(TokenType.MAC, raw, line);
+            case "sign":
+                return new Token(TokenType.SIGN, raw, line);
+            case "verify":
+                return new Token(TokenType.VRFY, raw, line);
+            case "hash":
+                return new Token(TokenType.HASH, raw, line);
             default:
-                return new Token(TokenType.IDENTIFIER, text, line);
+                return new Token(TokenType.IDENTIFIER, raw, line);
         }
     }
 

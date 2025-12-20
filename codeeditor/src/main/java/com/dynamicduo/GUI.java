@@ -58,6 +58,8 @@ public class GUI extends JFrame implements KeyListener {
     private JTextArea headingArea, analysisArea, errorArea;
     private JScrollPane headingScroll, svgScroll, analysisScroll, errorScroll;
 
+    private JPanel messageHeaderPanel;
+
     private RSyntaxTextArea codeArea;
     private RTextScrollPane codeScroll;
 
@@ -67,6 +69,7 @@ public class GUI extends JFrame implements KeyListener {
 
     private JButton messageBtn, svgBtn, javaBtn, analysisBtn;
     private JButton uploadBtn, runBtn, saveBtn, displayBtn;
+    private JButton syntaxBtn;
 
     private String analysisStr, svgStr;
 
@@ -78,7 +81,7 @@ public class GUI extends JFrame implements KeyListener {
 
 
     public GUI() {
-        setTitle("Security Message App");
+        setTitle("Secure Protocol Editor");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(900, 600);
         setLocationRelativeTo(null);
@@ -93,10 +96,11 @@ public class GUI extends JFrame implements KeyListener {
 
         // Creates Nav panel to allow for change between modes
         JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        messageBtn = new JButton("Message");
+        messageBtn = new JButton("Editor");
         svgBtn = new JButton("SVG");
         javaBtn = new JButton("Java Code");
         analysisBtn = new JButton("Analysis");
+        syntaxBtn = new JButton("Syntax");
 
         // set button size and fonts
         messageBtn.setPreferredSize(new Dimension(105, 35));
@@ -107,6 +111,8 @@ public class GUI extends JFrame implements KeyListener {
         javaBtn.setFont(new Font("Verdana", Font.BOLD, 14));
         analysisBtn.setPreferredSize(new Dimension(105, 35));
         analysisBtn.setFont(new Font("Verdana", Font.BOLD, 14));
+        syntaxBtn.setPreferredSize(new Dimension(100, 35));
+        syntaxBtn.setFont(new Font("Verdana", Font.BOLD, 14));
 
         // add to navigation panel
         navPanel.add(messageBtn);
@@ -120,9 +126,11 @@ public class GUI extends JFrame implements KeyListener {
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(new FlowLayout(FlowLayout.RIGHT));
 
+        
+
         // Assigning buttons
         runBtn = new JButton("Run");
-        saveBtn = new JButton("Save");
+        saveBtn = new JButton("Save As");
         uploadBtn = new JButton("Upload");
         displayBtn = new JButton("Dark Mode");
 
@@ -154,6 +162,20 @@ public class GUI extends JFrame implements KeyListener {
 
         headingScroll = new JScrollPane(headingArea);
         headingScroll.getVerticalScrollBar().putClientProperty("JScrollBar.fastWheelScrolling", true);
+
+        // Syntax button (only shown in Message mode header)
+        syntaxBtn = new JButton("Syntax");
+        syntaxBtn.setPreferredSize(new Dimension(110, 35));
+        syntaxBtn.setFont(new Font("Verdana", Font.BOLD, 13));
+
+        // Panel that sits INSIDE the "Message Mode" header box
+        messageHeaderPanel = new JPanel(new BorderLayout());
+        messageHeaderPanel.add(headingScroll, BorderLayout.CENTER);
+
+        JPanel syntaxBtnWrap = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+        syntaxBtnWrap.add(syntaxBtn);
+        messageHeaderPanel.add(syntaxBtnWrap, BorderLayout.EAST);
+
 
         // Set up Analysis Area
         analysisArea = new JTextArea();
@@ -200,6 +222,9 @@ public class GUI extends JFrame implements KeyListener {
         svgBtn.addActionListener(e -> switchMode("svg"));
         javaBtn.addActionListener(e -> switchMode("java"));
         analysisBtn.addActionListener(e -> switchMode("analysis"));
+        
+        syntaxBtn.addActionListener(e -> showSyntaxDialog());
+
 
         // ---------------- SAVE (cross-platform, default = Documents/DynamicDuoExports) ----------------
         saveBtn.addActionListener(e -> {
@@ -424,8 +449,11 @@ public class GUI extends JFrame implements KeyListener {
                 headingArea.setText("SVG Mode\n(This is the SVG for the Message Passing)");
                 highlightActiveMode(svgBtn);
 
+
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
+                syntaxBtn.setEnabled(false);
+
 
                 if (executed && svgStr != null) {
                     SVGUniverse universe = new SVGUniverse();
@@ -489,6 +517,8 @@ public class GUI extends JFrame implements KeyListener {
                 codeArea.setEditable(false);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
+                syntaxBtn.setEnabled(false);
+
 
                 setUpCodeScroll();
                 setCenterComponent(splitPane);
@@ -508,6 +538,8 @@ public class GUI extends JFrame implements KeyListener {
                 highlightActiveMode(analysisBtn);
                 uploadBtn.setEnabled(false);
                 runBtn.setEnabled(false);
+                syntaxBtn.setEnabled(false);
+
 
                 splitPane2 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, analysisScroll);
                 splitPane2.setResizeWeight(0.10);
@@ -519,22 +551,30 @@ public class GUI extends JFrame implements KeyListener {
                 splitPane2.requestFocusInWindow();
             }
             case "message" -> {
-                headingArea.setText("Message Mode\nFiles can be uploaded as .txt or .pdf\nSyntax:");
-                highlightActiveMode(messageBtn);
+                splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
 
+                headingArea.setText(" Welcome to the Protocol Editor. Please type your protocol description below, then click 'Run'. \n You may refer to the syntax guide for help -->");
+
+                highlightActiveMode(messageBtn);
+                
+
+                syntaxBtn.setEnabled(true);
                 codeArea.setEditable(true);
                 uploadBtn.setEnabled(true);
                 runBtn.setEnabled(true);
 
                 setUpCodeScroll();
-                splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, splitPane, errorScroll);
-                splitPane3.setResizeWeight(0.8);
+
+                // Header (with Syntax button on the right) + Editor
+                JSplitPane top = new JSplitPane(JSplitPane.VERTICAL_SPLIT, messageHeaderPanel, codeScroll);
+                top.setResizeWeight(0.20);     // header smaller, editor bigger
+                top.setDividerSize(6);
+
+                splitPane3 = new JSplitPane(JSplitPane.VERTICAL_SPLIT, top, errorScroll);
+                splitPane3.setResizeWeight(0.80);
                 setCenterComponent(splitPane3);
 
-                zoom(splitPane3);
-                splitPane3.addKeyListener(this);
-                splitPane3.setFocusable(true);
-                splitPane3.requestFocusInWindow();
+
             }
         }
     }
@@ -554,9 +594,12 @@ public class GUI extends JFrame implements KeyListener {
     }
 
     private void setUpCodeScroll() {
-        splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, headingScroll, codeScroll);
+        Component header = currentMode.equals("message") ? messageHeaderPanel : headingScroll;
+        splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, header, codeScroll);
         splitPane.setResizeWeight(0.25);
     }
+
+
 
     @Override
     public void keyPressed(KeyEvent e) {
@@ -666,5 +709,102 @@ public class GUI extends JFrame implements KeyListener {
         if (!dir.exists()) dir.mkdirs();
         return dir;
     }
+
+    /*
+     * Show the syntax dialog
+     */
+    private void showSyntaxDialog() {
+        String text = loadSyntaxText();
+
+        JTextArea area = new JTextArea(text);
+        area.setEditable(false);
+        area.setLineWrap(false);
+        area.setFont(new Font("Consolas", Font.PLAIN, 13));
+
+        JScrollPane scroll = new JScrollPane(area);
+        scroll.setPreferredSize(new Dimension(820, 520));
+
+        // ---- Build a real modal dialog so we can control colors reliably ----
+        final JDialog dialog = new JDialog(this, "Syntax Reference (SYNTAX.md)", true);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+
+        JButton okBtn = new JButton("OK");
+        okBtn.addActionListener(e -> dialog.dispose());
+
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        bottom.add(okBtn);
+
+        JPanel root = new JPanel(new BorderLayout());
+        root.add(scroll, BorderLayout.CENTER);
+        root.add(bottom, BorderLayout.SOUTH);
+
+        // ---- Apply light/dark theme ----
+        applySyntaxDialogTheme(dialog, root, area, scroll, bottom);
+
+        dialog.setContentPane(root);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+
+        refocus();
+    }
+
+
+    private String loadSyntaxText() {
+        try (InputStream in = GUI.class.getResourceAsStream("/SYNTAX.md")) {
+            if (in == null) {
+                return "SYNTAX.md not found inside the jar.\n\n" +
+                    "Fix: put SYNTAX.md in src/main/resources/";
+            }
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return "Error loading SYNTAX.md: " + e.getMessage();
+        }
+    }
+
+    /*
+     * Apply the theme to the syntax dialog components
+     */
+    private void applySyntaxDialogTheme(
+            JDialog dialog,
+            JPanel root,
+            JTextArea area,
+            JScrollPane scroll,
+            JPanel bottom
+    ) {
+        if (dark) {
+            Color bg = new Color(40, 44, 52);
+            Color panelBg = new Color(30, 33, 39);
+            Color fg = Color.WHITE;
+
+            dialog.getContentPane().setBackground(bg);
+            root.setBackground(bg);
+            bottom.setBackground(panelBg);
+
+            area.setBackground(bg);
+            area.setForeground(fg);
+            area.setCaretColor(fg);
+
+            scroll.getViewport().setBackground(bg);
+            scroll.setBackground(bg);
+        } else {
+            Color bg = Color.WHITE;
+            Color panelBg = new Color(245, 245, 245);
+            Color fg = Color.BLACK;
+
+            dialog.getContentPane().setBackground(bg);
+            root.setBackground(bg);
+            bottom.setBackground(panelBg);
+
+            area.setBackground(bg);
+            area.setForeground(fg);
+            area.setCaretColor(fg);
+
+            scroll.getViewport().setBackground(bg);
+            scroll.setBackground(bg);
+        }
+    }
+
+
 
 }
