@@ -59,16 +59,6 @@ import java.util.*;
  *     Concat(m1, 0) term, that stays as one opaque blob from the point of
  *     view of this analyzer. This matches the idea that seeing a bitstring
  *     does not automatically tell me which variable it came from.
- *
- * Simplifications:
- *   - Identifiers (IdentifierNode) are treated as atomic symbols: "K_AB",
- *     "N_A", "M_1", "c", etc.
- *   - EncryptExprNode / MacExprNode / HashExprNode / SignExprNode /
- *     VerifyExprNode / ConcatNode are all treated as opaque structured
- *     terms. I encode them as strings like "Enc(K_AB, M_1)" for now.
- *   - "Catastrophic" is: the adversary learns any identifier that looks like
- *     a key (K_*) or plaintext message (M_*). I just use this as a rough
- *     signal for now.
  */
 public final class KnowledgeAnalyzer {
 
@@ -214,11 +204,13 @@ public final class KnowledgeAnalyzer {
         // Add the implicit passive adversary.
         knows.put(ADVERSARY, new LinkedHashSet<>());
 
+        // Build a map of keyName -> KeyKind for easy lookup
         Map<String, KeyKind> keyKinds = new HashMap<>();
         for (KeyDeclNode kd : proto.getKeyDecls()) {
             keyKinds.put(kd.getKeyName(), kd.getKind());
         }
 
+        // For identifying secrets later
        Set<String> secretKeys = new HashSet<>();
         for (Map.Entry<String, KeyKind> entry : keyKinds.entrySet()) {
             if (entry.getValue() == KeyKind.SHARED || entry.getValue() == KeyKind.PRIVATE) {
@@ -290,40 +282,40 @@ public final class KnowledgeAnalyzer {
         }
 
         // 5) Apply decryption rule until no new knowledge is added.
-boolean changed;
-do {
-    changed = false;
+        boolean changed;
+        do {
 
-    for (String p : knows.keySet()) {
-        Set<String> terms = knows.get(p);
-        Set<String> encs  = encryptTerms.get(p);
+            changed = false;
+            for (String p : knows.keySet()) {
+                Set<String> terms = knows.get(p);
+                Set<String> encs  = encryptTerms.get(p);
 
-        for (String enc : encs) {
-            if (!enc.startsWith("Enc(") || !enc.endsWith(")")) continue;
+                for (String enc : encs) {
+                    if (!enc.startsWith("Enc(") || !enc.endsWith(")")) continue;
 
-            String inside = enc.substring(4, enc.length() - 1);
-            String[] parts = inside.split(",", 2);
-            if (parts.length != 2) continue;
+                    String inside = enc.substring(4, enc.length() - 1);
+                    String[] parts = inside.split(",", 2);
+                    if (parts.length != 2) continue;
 
-            String k = parts[0].trim();   // could be K_AB or pkK
-            String m = parts[1].trim();   // e.g., M1
+                    String k = parts[0].trim();   // could be K_AB or pkK
+                    String m = parts[1].trim();   // e.g., M1
 
-            // NEW: if encryption used a PUBLIC key, require the matching PRIVATE key to decrypt
-            String requiredKey = k;
-            KeyKind kind = keyKinds.get(k);
-            if (kind == KeyKind.PUBLIC) {
-                String sk = matchingPrivateKeyName(k); // pkK -> skK
-                if (sk != null) requiredKey = sk;
+                    // NEW: if encryption used a PUBLIC key, require the matching PRIVATE key to decrypt
+                    String requiredKey = k;
+                    KeyKind kind = keyKinds.get(k);
+                    if (kind == KeyKind.PUBLIC) {
+                        String sk = matchingPrivateKeyName(k); // pkK -> skK
+                        if (sk != null) requiredKey = sk;
+                    }
+
+                    // Only learn *bare* identifiers as plaintext from decryption
+                    if (canDecrypt(terms, requiredKey, keyKinds) && !terms.contains(m) && isBareIdentifier(m)) {
+                        terms.add(m);
+                        changed = true;
+                    }
+                }
             }
-
-            // Only learn *bare* identifiers as plaintext from decryption
-            if (canDecrypt(terms, requiredKey, keyKinds) && !terms.contains(m) && isBareIdentifier(m)) {
-                terms.add(m);
-                changed = true;
-            }
-        }
-    }
-} while (changed);
+        } while (changed);
 
 
         // 5.5) Identify variables that are *produced* by crypto/opaque operations,
@@ -408,7 +400,7 @@ do {
                 }
             }
 
-            // Adversary output focuses on what they observe + what they *learn*
+            // Adversary output focuses on what they observe + what they learn
             if (principal.equals(ADVERSARY)) {
                 sb.append("Observed Messages / Objects:\n");
                 if (observed.isEmpty()) sb.append("  (none)\n");
@@ -477,8 +469,7 @@ do {
 
     /**
      * Heuristic: treat anything with parentheses or "||" as a structured term
-     * (ciphertext, MAC, signature, hash, concat, etc.), and bare symbols
-     * like K_AB, M_1, N_A as atomic.
+     * (ciphertext, MAC, signature, hash, concat, etc.)
      */
     private static boolean isStructuredTerm(String term) {
         return term.contains("(") || term.contains("||");

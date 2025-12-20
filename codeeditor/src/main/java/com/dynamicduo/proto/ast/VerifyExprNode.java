@@ -21,6 +21,10 @@ package com.dynamicduo.proto.ast;
 
 import java.util.List;
 
+
+/**
+ * VerifyExprNode: verify(pk, message, signature)
+ */
 public final class VerifyExprNode extends SyntaxNode {
     private final IdentifierNode pk;
     private final SyntaxNode message;

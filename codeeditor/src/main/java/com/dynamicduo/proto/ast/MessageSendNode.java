@@ -21,7 +21,9 @@ package com.dynamicduo.proto.ast;
 
 import java.util.List;
 
-/** Represents: Alice -> Bob : <stmt> */
+/**
+ * MessageSendNode: sender -> receiver { body }
+ */
 public class MessageSendNode extends SyntaxNode {
     private final IdentifierNode sender;
     private final IdentifierNode receiver;

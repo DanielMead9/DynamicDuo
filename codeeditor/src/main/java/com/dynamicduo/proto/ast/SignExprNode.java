@@ -21,6 +21,9 @@ package com.dynamicduo.proto.ast;
 
 import java.util.List;
 
+/**
+ * SignExprNode: sign(sk, message)
+ */
 public final class SignExprNode extends SyntaxNode {
     private final IdentifierNode sk;
     private final SyntaxNode message;

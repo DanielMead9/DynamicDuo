@@ -20,7 +20,7 @@
 package com.dynamicduo.proto.lexer;
 
 /**
- * Small hand-written lexer.
+ * Small hand written lexer.
  *
  * skip whitespace/newlines, recognize keywords, identifiers, punctuation,
  * and produce a stream of Token objects for the parser.
@@ -151,6 +151,7 @@ public class Lexer {
             }
         }
     }
+
 
     private boolean isAtEnd() {
         return pos >= len;

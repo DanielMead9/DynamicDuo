@@ -21,6 +21,9 @@ package com.dynamicduo.proto.ast;
 
 import java.util.List;
 
+/**
+ * HashExprNode: hash(inner)
+ */
 public final class HashExprNode extends SyntaxNode {
     private final SyntaxNode inner;
 

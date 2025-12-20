@@ -19,6 +19,9 @@
 
 package com.dynamicduo.proto.ast;
 
+/**
+ * Kinds of keys.
+ */
 public enum KeyKind {
     SHARED,
     PUBLIC,
