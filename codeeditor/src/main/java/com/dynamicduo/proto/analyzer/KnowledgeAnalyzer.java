@@ -283,34 +283,41 @@ public final class KnowledgeAnalyzer {
         }
 
         // 5) Apply decryption rule until no new knowledge is added.
-        boolean changed;
-        do {
-            changed = false;
+boolean changed;
+do {
+    changed = false;
 
-            for (String p : knows.keySet()) {
-                Set<String> terms = knows.get(p);
-                Set<String> encs  = encryptTerms.get(p);
+    for (String p : knows.keySet()) {
+        Set<String> terms = knows.get(p);
+        Set<String> encs  = encryptTerms.get(p);
 
-                for (String enc : encs) {
-                    if (!enc.startsWith("Enc(") || !enc.endsWith(")"))
-                        continue;
+        for (String enc : encs) {
+            if (!enc.startsWith("Enc(") || !enc.endsWith(")")) continue;
 
-                    String inside = enc.substring(4, enc.length() - 1);
-                    String[] parts = inside.split(",", 2);
-                    if (parts.length != 2) continue;
+            String inside = enc.substring(4, enc.length() - 1);
+            String[] parts = inside.split(",", 2);
+            if (parts.length != 2) continue;
 
-                    String k = parts[0].trim();
-                    String m = parts[1].trim();
+            String k = parts[0].trim();   // could be K_AB or pkK
+            String m = parts[1].trim();   // e.g., M1
 
-                    // Only learn *bare* identifiers as plaintext from decryption
-                    if (canDecrypt(terms, k, keyKinds) && !terms.contains(m) && isBareIdentifier(m)) {
-                        terms.add(m);
-                        changed = true;
-                    }
-                }
+            // NEW: if encryption used a PUBLIC key, require the matching PRIVATE key to decrypt
+            String requiredKey = k;
+            KeyKind kind = keyKinds.get(k);
+            if (kind == KeyKind.PUBLIC) {
+                String sk = matchingPrivateKeyName(k); // pkK -> skK
+                if (sk != null) requiredKey = sk;
             }
 
-        } while (changed);
+            // Only learn *bare* identifiers as plaintext from decryption
+            if (canDecrypt(terms, requiredKey, keyKinds) && !terms.contains(m) && isBareIdentifier(m)) {
+                terms.add(m);
+                changed = true;
+            }
+        }
+    }
+} while (changed);
+
 
         // 5.5) Identify variables that are *produced* by crypto/opaque operations,
         // so they should be treated as "Observed Crypto Objects" (e.g., c = Enc(...))
@@ -564,6 +571,18 @@ public final class KnowledgeAnalyzer {
             || node instanceof VerifyExprNode
             || node instanceof ConcatNode;
     }
+
+    /**
+     * Given a public key name, return the matching private key name.
+     * Convention: pkX -> skX
+     */
+    private static String matchingPrivateKeyName(String pkName) {
+        if (pkName.startsWith("pk") && pkName.length() > 2) {
+            return "sk" + pkName.substring(2);
+        }
+        return null;
+    }
+
 
 }
 
