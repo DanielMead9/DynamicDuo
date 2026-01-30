@@ -127,15 +127,14 @@ public final class KnowledgeAnalyzer {
 
         // Concatenation: left || right
         else if (node instanceof ConcatNode cat) {
-            String leftLabel  = cat.getLeft().label();
-            String rightLabel = cat.getRight().label();
-            String sym = "(" + leftLabel + " || " + rightLabel + ")";
-
-            // Treat the entire concatenation as an opaque symbol.
+            // Optional: keep a readable “whole thing” symbol for display
+            String sym = "(" + cat.getLeft().label() + " || " + cat.getRight().label() + ")";
             identifiers.add(sym);
 
-            // Do NOT recurse into left/right; that matches the "opaque blob" model.
-        }
+            // FIX: concatenation is transparent on the wire
+            collectTerms(cat.getLeft(), identifiers, encrypts);
+            collectTerms(cat.getRight(), identifiers, encrypts);
+        }   
 
         // MAC: Mac(keyId, msgExpr)
         else if (node instanceof MacExprNode mac) {
