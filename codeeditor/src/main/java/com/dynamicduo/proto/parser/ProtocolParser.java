@@ -28,7 +28,7 @@ import java.util.List;
 /**
  * Recursive-descent parser for the protocol language.
  *
- * Right now this support:
+ * Right now this supports:
  *
  *   protocol  → rolesDecl message* EOF ;
  *   rolesDecl → "roles" ":" IDENT ( "," IDENT )* ;
